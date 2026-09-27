@@ -33,6 +33,33 @@ Clinical & Follow-up Instructions:
 
 Output ONLY valid JSON matching the schema.`;
 
+function formatReply(parsed, patientProfile) {
+  let replyText = parsed.reply;
+  if (!replyText || typeof replyText !== 'string' || replyText.trim().length < 5) {
+    if (JSON.stringify(patientProfile).toLowerCase().includes('thyroid') || JSON.stringify(patientProfile).toLowerCase().includes('levothyrox')) {
+      replyText = "مرحباً. انتفاخ العنق قد يكون مرتبطاً باضطراب الغدة الدرقية لديك (تضخم الغدة الدرقية). يُفضل مراجعة طبيبك لمراجعة جرعة الليفوثيروكس والتأكد من السبب.";
+    } else {
+      replyText = "مرحباً. من المهم تقييم أعراضك بعناية. هل تعاني من صعوبة في التنفس أو البلع؟ يُرجى استشارة الطبيب للفحص.";
+    }
+  }
+
+  replyText = replyText.replace(/\s+(?:LOW|MEDIUM|HIGH|CRITICAL)\s*$/i, '').trim();
+
+  if (parsed.options && Array.isArray(parsed.options) && parsed.options.length > 0) {
+    replyText += `\n[OPTIONS: ${parsed.options.join(' | ')}]`;
+  }
+  if (parsed.followup_time_seconds) {
+    replyText += `\n[FOLLOWUP_TIME_SECONDS: ${parsed.followup_time_seconds}]`;
+  } else if (parsed.followup_time_minutes) {
+    replyText += `\n[FOLLOWUP_TIME_MINUTES: ${parsed.followup_time_minutes}]`;
+  }
+  if (parsed.followup_message) {
+    replyText += `\n[FOLLOWUP_MSG: ${parsed.followup_message}]`;
+  }
+  replyText += `\n[SEVERITY: ${parsed.severity || 'LOW'}]`;
+  return replyText;
+}
+
 class TriageAgent {
   async assess(history, patientProfile = {}) {
     const compactProfile = llmClient.formatCompactProfile(patientProfile);
@@ -46,42 +73,33 @@ class TriageAgent {
     const parsed = llmClient.parseJSON(raw, null);
 
     if (parsed) {
-      let replyText = parsed.reply;
-      if (!replyText || typeof replyText !== 'string' || replyText.trim().length < 5) {
-        if (JSON.stringify(patientProfile).toLowerCase().includes('thyroid') || JSON.stringify(patientProfile).toLowerCase().includes('levothyrox')) {
-          replyText = "مرحباً. انتفاخ العنق قد يكون مرتبطاً باضطراب الغدة الدرقية لديك (تضخم الغدة الدرقية). يُفضل مراجعة طبيبك لمراجعة جرعة الليفوثيروكس والتأكد من السبب.";
-        } else {
-          replyText = "مرحباً. من المهم تقييم أعراضك بعناية. هل تعاني من صعوبة في التنفس أو البلع؟ يُرجى استشارة الطبيب للفحص.";
-        }
-      }
-
-      // Clean trailing severity words if Gemma 4 outputted them inside reply
-      replyText = replyText.replace(/\s+(?:LOW|MEDIUM|HIGH|CRITICAL)\s*$/i, '').trim();
-
-      if (parsed.options && Array.isArray(parsed.options) && parsed.options.length > 0) {
-        replyText += `\n[OPTIONS: ${parsed.options.join(' | ')}]`;
-      }
-      if (parsed.followup_time_seconds) {
-        replyText += `\n[FOLLOWUP_TIME_SECONDS: ${parsed.followup_time_seconds}]`;
-      } else if (parsed.followup_time_minutes) {
-        replyText += `\n[FOLLOWUP_TIME_MINUTES: ${parsed.followup_time_minutes}]`;
-      }
-      if (parsed.followup_message) {
-        replyText += `\n[FOLLOWUP_MSG: ${parsed.followup_message}]`;
-      }
-      replyText += `\n[SEVERITY: ${parsed.severity || 'LOW'}]`;
-      return replyText;
+      return formatReply(parsed, patientProfile);
     }
 
     return raw;
   }
 
-  // ponytail: not true token streaming — the schema needs the whole JSON to parse.
-  // Emits the reply as one token, then the done frame. Swap for llmClient.completeStream
-  // once the UI tolerates partial JSON.
   async *streamAssess(history, patientProfile = {}) {
-    const replyText = await this.assess(history, patientProfile);
-    yield replyText;  // bare string: ChatService treats a string as a token
+    const compactProfile = llmClient.formatCompactProfile(patientProfile);
+
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT + `\nPatient Context: ${compactProfile}` },
+      ...history,
+    ];
+
+    let raw = '';
+    for await (const chunk of llmClient.completeStream(messages, {
+      jsonSchema: TRIAGE_SCHEMA,
+      temperature: 0.1,
+      maxTokens: 700,
+    })) {
+      raw += chunk;
+      yield chunk;
+    }
+
+    const parsed = llmClient.parseJSON(raw, null);
+    const replyText = parsed ? formatReply(parsed, patientProfile) : raw;
+
     yield { type: 'done', severity: this.getSeverity(replyText), options: null, fullContent: replyText };
   }
 
