@@ -28,10 +28,13 @@ const chatService = {
 
       if (response.headers.get('content-type')?.includes('application/json')) {
         const data = await response.json();
-        if (data.isEmergency && onEmergency) {
-          onEmergency(data);
+        if (data.isEmergency && onEmergency) onEmergency(data);
+        if (data.reply) {
+          onToken(data.reply);
+          onDone({ severity: data.severity });
           return;
         }
+        return;
       }
 
       const reader = response.body.getReader();

@@ -257,8 +257,13 @@ export default function TriageScreen() {
             }
           },
           (errMsg) => {
+            // Never surface the provider's error body to a patient.
+            console.warn('[triage] stream failed:', errMsg);
             setMessages(prev =>
-              prev.map(m => m.id === assistantId ? { ...m, text: `Sorry, an error occurred: ${errMsg}` } : m)
+              prev.map(m => m.id === assistantId ? {
+                ...m,
+                text: 'تعذّر الاتصال بالمساعد الآن. أعد المحاولة بعد لحظات، وإذا كانت الأعراض شديدة اتصل بالطوارئ 150.',
+              } : m)
             );
           },
           (emergencyData) => {

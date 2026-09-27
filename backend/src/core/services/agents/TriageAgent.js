@@ -76,6 +76,15 @@ class TriageAgent {
     return raw;
   }
 
+  // ponytail: not true token streaming — the schema needs the whole JSON to parse.
+  // Emits the reply as one token, then the done frame. Swap for llmClient.completeStream
+  // once the UI tolerates partial JSON.
+  async *streamAssess(history, patientProfile = {}) {
+    const replyText = await this.assess(history, patientProfile);
+    yield replyText;  // bare string: ChatService treats a string as a token
+    yield { type: 'done', severity: this.getSeverity(replyText), options: null, fullContent: replyText };
+  }
+
   getSeverity(replyText) {
     if (!replyText) return 'LOW';
     const match = replyText.match(/\[SEVERITY:\s*(CRITICAL|HIGH|MEDIUM|LOW)\]/i);

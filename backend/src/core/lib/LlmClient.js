@@ -185,6 +185,19 @@ class LlmClient {
    * Resolves to the cleaned text.
    */
   async complete(messages, options = {}) {
+    return this.withRateLimitRetry(
+      () => this._completeOnce(messages, options),
+      {
+        // A 400 "failed to generate JSON" is the model answering in prose
+        // instead of the requested object. The request was valid, so retrying
+        // it succeeds often enough that losing the exchange is not justified.
+        isRetryable: err => /failed to generate json|json_validate_failed/i.test(err.message),
+        baseDelayMs: 400,
+      },
+    );
+  }
+
+  async _completeOnce(messages, options = {}) {
     const response = await fetch(this.baseUrl, {
       method: 'POST',
       headers: this._headers(),
@@ -225,14 +238,15 @@ class LlmClient {
    * The delay has to reach into the next window, so the last attempts wait a
    * full minute rather than doubling from a second.
    */
-  async withRateLimitRetry(fn, { attempts = 4, baseDelayMs = 1500, maxDelayMs = 62000 } = {}) {
+  async withRateLimitRetry(fn, { attempts = 4, baseDelayMs = 1500, maxDelayMs = 62000, isRetryable } = {}) {
     let lastError;
     for (let i = 0; i < attempts; i++) {
       try {
         return await fn();
       } catch (err) {
         lastError = err;
-        const rateLimited = /\b429\b|rate.?limit|too many requests|quota/i.test(err.message);
+        const retryable = isRetryable ? isRetryable(err) : /\b429\b|rate.?limit|too many requests|quota/i.test(err.message);
+        const rateLimited = retryable;
         // A truncated JSON document: the cap was too small for the document.
         // Retrying at the same size fails identically, so surface it as-is and
         // let the caller raise maxTokens rather than burning attempts.
@@ -244,7 +258,7 @@ class LlmClient {
           ? Math.min(Number(hint[1]) * 1000 + 500, maxDelayMs)
           : Math.min(maxDelayMs, baseDelayMs * Math.pow(2, i));
 
-        console.warn(`[LlmClient] rate limited, retrying in ${Math.round(wait / 1000)}s (attempt ${i + 1}/${attempts})`);
+        console.warn(`[LlmClient] retryable ${err.message.slice(0, 60)}…, retrying in ${Math.round(wait / 1000)}s (attempt ${i + 1}/${attempts})`);
         await new Promise((r) => setTimeout(r, wait));
       }
     }
