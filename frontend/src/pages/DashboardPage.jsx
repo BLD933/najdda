@@ -1,207 +1,286 @@
 import React from 'react';
 import { useAuth } from '../features/auth/context/AuthContext';
-import { 
-  LogOut, 
-  User as UserIcon, 
-  Settings, 
-  ChevronRight, 
-  Activity as ActivityIcon, 
+import {
+  Settings,
+  ChevronRight,
+  Activity as ActivityIcon,
   ShieldAlert,
-  MapPin 
+  MapPin
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import ThemeToggle from '../features/theme/components/ThemeToggle';
+import LanguageSwitcher from '../features/i18n/LanguageSwitcher';
+import { useTranslation } from '../features/i18n/I18nContext';
+import { tValue, isEmptyValue } from '../features/i18n/valueLabels';
 
 const EMERGENCY_BY_COUNTRY = {
   Morocco: '150', Algeria: '14', Tunisia: '190', France: '15', USA: '911', Canada: '911', UK: '999', Spain: '112',
 };
 
-const DashboardPage = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const emergencyNumber = EMERGENCY_BY_COUNTRY[user?.profile?.country || 'Morocco'] || '112';
+// Micro-labels: 10px uppercase. At that size `ink-subtle` is the floor, never
+// `ink-muted` — the audit put slate-400 on white at 2.56:1.
+const MicroLabel = ({ children, className = '' }) => (
+  <span className={`block text-[10px] font-black uppercase tracking-[0.2em] text-ink-subtle ${className}`}>
+    {children}
+  </span>
+);
+
+const EmptyNote = ({ children }) => (
+  <p className="text-sm italic text-ink-muted">{children}</p>
+);
+
+// Written out in full rather than interpolated: Tailwind scans source text, so
+// `hover:border-${accent}` would compile to nothing.
+const SERVICE_TONE = {
+  primary: {
+    card: 'hover:border-primary hover:shadow-card-hover',
+    icon: 'bg-primary-subtle text-primary group-hover:bg-primary group-hover:text-on-primary',
+    title: 'text-primary',
+    cta: 'text-primary',
+    ghost: 'group-hover:text-primary-subtle',
+  },
+  emergency: {
+    card: 'hover:border-emergency hover:shadow-card-hover',
+    icon: 'bg-emergency-subtle text-emergency group-hover:bg-emergency group-hover:text-on-emergency',
+    title: 'text-emergency',
+    cta: 'text-emergency',
+    ghost: 'group-hover:text-emergency-subtle',
+  },
+};
+
+const ServiceCard = ({ tone, onClick, Icon, title, description, cta, index }) => {
+  const t = SERVICE_TONE[tone];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-blue-100">
-      {/* Precision Navigation */}
-      <nav className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-xl">S</div>
-          <h1 className="text-xl font-black tracking-tighter uppercase">SHIFAA</h1>
+    <button
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-ui-xl border-2 border-line bg-surface p-8 text-left transition-all duration-300 ${t.card}`}
+    >
+      <div className="relative z-10">
+        <div className={`mb-6 flex h-14 w-14 items-center justify-center rounded-ui-md transition-colors duration-300 ${t.icon}`}>
+          <Icon size={32} aria-hidden="true" />
         </div>
-        
+        <h3 className={`mb-2 text-2xl font-black tracking-tight ${t.title}`}>{title}</h3>
+        <p className="text-sm font-medium leading-relaxed text-ink-muted">{description}</p>
+        <div className={`mt-8 flex items-center gap-2 text-xs font-black uppercase tracking-widest opacity-0 transition-opacity group-hover:opacity-100 ${t.cta}`}>
+          {cta} <ChevronRight size={14} aria-hidden="true" />
+        </div>
+      </div>
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute -bottom-4 -right-2 text-9xl font-black text-surface-2 transition-colors ${t.ghost}`}
+      >
+        {index}
+      </span>
+    </button>
+  );
+};
+
+const DashboardPage = () => {
+  const { user, logout } = useAuth();
+  const { t, lang } = useTranslation();
+  const navigate = useNavigate();
+  const emergencyNumber = EMERGENCY_BY_COUNTRY[user?.profile?.country || 'Morocco'] || '112';
+  const firstName = user?.fullName?.split(' ')[0];
+
+  // 'Salam, {name}.' → ['Salam, ', '.'] so the name can be coloured on its own.
+  const greetBefore = t('dashboard.hero.greeting').split('{name}')[0];
+  const greetAfter = t('dashboard.hero.greeting').split('{name}').slice(1).join('{name}');
+
+  return (
+    <div className="min-h-screen bg-canvas text-ink selection:bg-primary-subtle">
+      <nav className="sticky top-0 z-sticky flex items-center justify-between border-b border-line bg-surface px-8 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-ui-sm bg-primary text-xl font-black text-on-primary">S</div>
+          <h1 className="text-xl font-black uppercase tracking-tighter">{t('brand.name')}</h1>
+        </div>
+
         <div className="flex items-center gap-8">
-          <div className="hidden md:flex items-center gap-3 px-4 py-1.5 bg-slate-50 border border-slate-100 rounded-full">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">System Live</span>
+          <div className="hidden items-center gap-3 rounded-full border border-line bg-surface-2 px-4 py-1.5 md:flex">
+            <div className="h-2 w-2 rounded-full bg-success" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t('nav.systemLive')}</span>
           </div>
-          
+
           <div className="flex items-center gap-6">
-            <Link to="/settings" className="flex items-center gap-2 text-slate-400 hover:text-blue-600 transition-all group">
-              <Settings size={18} className="group-hover:rotate-90 transition-transform duration-500" />
-              <span className="text-xs font-bold uppercase tracking-wider">Passport</span>
+            <Link to="/settings" className="group flex items-center gap-2 text-ink-muted transition-colors hover:text-primary">
+              <Settings size={18} className="transition-transform duration-500 group-hover:rotate-90" aria-hidden="true" />
+              <span className="text-xs font-bold uppercase tracking-wider">{t('nav.passport')}</span>
             </Link>
-            <button onClick={logout} className="text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-700 transition-colors">
-              Exit
+            <button onClick={logout} className="text-xs font-bold uppercase tracking-wider text-emergency transition-colors hover:text-emergency-hover">
+              {t('nav.exit')}
             </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <ThemeToggle />
           </div>
         </div>
       </nav>
-      
-      <main className="p-8 max-w-7xl mx-auto grid grid-cols-12 gap-8">
-        
-        {/* Main Interface: Left 8 Columns */}
-        <div className="col-span-12 lg:col-span-8 space-y-8">
-          
-          {/* Hero: The Thesis */}
-          <div className="relative overflow-hidden bg-[#0F172A] rounded-[2rem] p-10 text-white shadow-2xl shadow-blue-900/20">
+
+      <main className="mx-auto grid max-w-7xl grid-cols-12 gap-8 p-8">
+        <div className="col-span-12 space-y-8 lg:col-span-8">
+          {/* Accent panel, not a second theme: `hero` is pinned dark in both
+              themes, so nothing inside it needs a `dark:` override. */}
+          <div className="relative overflow-hidden rounded-ui-xl bg-hero p-10 text-on-hero shadow-hero">
             <div className="relative z-10">
-              <span className="text-blue-400 text-xs font-black uppercase tracking-[0.2em] mb-4 block">Medical Status: Stable</span>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-none">
-                Salam, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-blue-400">{user?.fullName?.split(' ')[0]}</span>.
+              <MicroLabel className="mb-4 !text-on-hero-muted">{t('dashboard.hero.status')}</MicroLabel>
+              <h2 className="text-4xl font-black leading-none tracking-tight md:text-5xl">
+                {/* Split on the {name} slot rather than concatenating in JS:
+                    the greeting is one sentence in two colours, and the
+                    punctuation after the name ("." here, but a translator may
+                    make it " :" in French) belongs in the dictionary, not in
+                    this component. */}
+                {greetBefore}
+                <span className="text-on-hero-accent">
+                  {firstName || t('dashboard.hero.greetingFallback')}
+                </span>
+                {greetAfter}
               </h2>
-              <p className="text-slate-400 mt-4 text-lg max-w-md font-medium leading-relaxed">
-                Your AI-specialized hospital is ready. Select a service to begin your digital consultation.
+              <p className="mt-4 max-w-md text-lg font-medium leading-relaxed text-on-hero-muted">
+                {t('dashboard.hero.subtitle')}
               </p>
             </div>
-            {/* Abstract Background Element */}
-            <div className="absolute -right-20 -top-20 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px]"></div>
+            <div aria-hidden="true" className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-primary/20 blur-[100px]" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Primary Tool: Triage */}
-            <button
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <ServiceCard
+              tone="primary"
+              index="01"
               onClick={() => navigate('/chat')}
-              className="group relative bg-white border-2 border-slate-100 p-8 rounded-[2rem] text-left hover:border-blue-600 hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 overflow-hidden"
-            >
-              <div className="relative z-10">
-                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-                  <ActivityIcon size={32} />
-                </div>
-                <h3 className="text-2xl font-black tracking-tight mb-2">Symptom Triage</h3>
-                <p className="text-slate-500 font-medium text-sm leading-relaxed">Speak with our lead nurse about what you are feeling. Structured analysis for safe guidance.</p>
-                <div className="mt-8 flex items-center gap-2 text-blue-600 font-black text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                  Open Service <ChevronRight size={14} />
-                </div>
-              </div>
-              {/* Subtle background number */}
-              <span className="absolute -bottom-4 -right-2 text-9xl font-black text-slate-50/50 pointer-events-none transition-colors group-hover:text-blue-50">01</span>
-            </button>
-
-            {/* Emergency Tool */}
-            <button
+              Icon={ActivityIcon}
+              title={t('dashboard.service.triage.title')}
+              description={t('dashboard.service.triage.description')}
+              cta={t('dashboard.service.triage.cta')}
+            />
+            <ServiceCard
+              tone="emergency"
+              index="02"
               onClick={() => window.open(`tel:${emergencyNumber}`, '_self')}
-              className="group relative bg-white border-2 border-slate-100 p-8 rounded-[2rem] text-left hover:border-red-600 hover:shadow-xl hover:shadow-red-900/5 transition-all duration-300 overflow-hidden"
-            >
-              <div className="relative z-10">
-                <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-6 group-hover:bg-red-600 group-hover:text-white transition-colors duration-300">
-                  <ShieldAlert size={32} />
-                </div>
-                <h3 className="text-2xl font-black tracking-tight mb-2 text-red-600">Emergency SOS</h3>
-                <p className="text-slate-500 font-medium text-sm leading-relaxed">Instant first-aid, hospital locator, and emergency contact notification. No conversation required.</p>
-                <div className="mt-8 flex items-center gap-2 text-red-600 font-black text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                  Active Mode <ChevronRight size={14} />
-                </div>
-              </div>
-              <span className="absolute -bottom-4 -right-2 text-9xl font-black text-slate-50/50 pointer-events-none transition-colors group-hover:text-red-50">02</span>
-            </button>
+              Icon={ShieldAlert}
+              title={t('dashboard.service.sos.title')}
+              description={t('dashboard.service.sos.description')}
+              cta={t('dashboard.service.sos.cta')}
+            />
           </div>
         </div>
 
-        {/* Clinical Sidebar: Right 4 Columns */}
-        <aside className="col-span-12 lg:col-span-4 space-y-8">
-          
-          {/* The Signature Instrument: Medical Snapshot */}
-          <div className="bg-white border-2 border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Identity Snapshot</h3>
-              <Link to="/settings" className="w-6 h-6 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all">
-                <Settings size={12} />
+        <aside className="col-span-12 space-y-8 lg:col-span-4">
+          <div className="overflow-hidden rounded-ui-xl border-2 border-line bg-surface shadow-card">
+            <div className="flex items-center justify-between border-b border-line bg-surface-2 px-6 py-4">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-ink-subtle">{t('dashboard.identity.title')}</h3>
+              <Link
+                to="/settings"
+                className="flex h-6 w-6 items-center justify-center rounded-full border border-line text-ink-muted transition-all hover:border-primary hover:text-primary"
+              >
+                <Settings size={12} aria-hidden="true" />
+                <span className="sr-only">{t('dashboard.identity.edit')}</span>
               </Link>
             </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Vitals Grid */}
+
+            <div className="space-y-6 p-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Blood Group</span>
-                  <span className="text-2xl font-black text-red-600 font-mono tracking-tighter">{user?.profile?.bloodType || '--'}</span>
+                <div className="rounded-ui-md border border-line bg-surface-2 p-4">
+                  <MicroLabel className="mb-1">{t('dashboard.identity.bloodGroup')}</MicroLabel>
+                  {/* `text-ink`, not `text-emergency`. A blood group is a stable
+                      lab value, not a severity state, and the BMI tile beside
+                      it is `text-ink` too. Painting it red implied a clinical
+                      alert that does not exist, and the red additionally only
+                      reached 3.89:1 on this tile in dark mode. `emergency` is
+                      reserved for emergency affordances. */}
+                  <span className="font-mono text-2xl font-black tracking-tighter text-ink">
+                    {user?.profile?.bloodType || '--'}
+                  </span>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Current BMI</span>
-                  <span className="text-2xl font-black text-slate-800 font-mono tracking-tighter">
-                    {user?.profile?.weight && user?.profile?.height 
-                      ? (user.profile.weight / Math.pow(user.profile.height/100, 2)).toFixed(1)
+                <div className="rounded-ui-md border border-line bg-surface-2 p-4">
+                  <MicroLabel className="mb-1">{t('dashboard.identity.bmi')}</MicroLabel>
+                  <span className="font-mono text-2xl font-black tracking-tighter text-ink">
+                    {user?.profile?.weight && user?.profile?.height
+                      ? (user.profile.weight / Math.pow(user.profile.height / 100, 2)).toFixed(1)
                       : '--'}
                   </span>
                 </div>
               </div>
 
-              {/* Conditions List */}
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                  <div className="w-1 h-1 bg-blue-600 rounded-full"></div> 
-                  Chronic Registry
+                <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-ink-subtle">
+                  <span aria-hidden="true" className="h-1 w-1 rounded-full bg-primary" />
+                  {t('dashboard.identity.chronic')}
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {user?.profile?.chronicDiseases?.split(', ').map((d, i) => (
-                    <span key={i} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 uppercase tracking-tight">
-                      {d}
-                    </span>
-                  ))}
-                  {(!user?.profile?.chronicDiseases || user?.profile?.chronicDiseases === 'None (Healthy)') && (
-                    <span className="text-sm text-slate-400 italic">No recorded conditions.</span>
+                  {/* The empty sentinel is filtered OUT of the chip list rather
+                      than rendered as a chip. The backend seeds 'None (Healthy)'
+                      but a profile that skipped the wizard stores a bare 'None',
+                      so an equality test missed it and a French dashboard showed
+                      a chip reading "NONE" where the empty note belongs. */}
+                  {user?.profile?.chronicDiseases
+                    ?.split(', ')
+                    .filter((d) => !isEmptyValue(d))
+                    .map((d, i) => (
+                      <span key={i} className="rounded-ui-sm border border-line bg-surface px-3 py-1.5 text-[11px] font-bold uppercase tracking-tight text-ink-subtle">
+                        {tValue(d, 'chronic', lang)}
+                      </span>
+                    ))}
+                  {isEmptyValue(user?.profile?.chronicDiseases) && (
+                    <EmptyNote>{t('dashboard.identity.chronicEmpty')}</EmptyNote>
                   )}
                 </div>
               </div>
 
-              {/* Medication Readout */}
-              <div className="space-y-4 pt-4 border-t border-slate-50">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
-                  <div className="w-1 h-1 bg-green-500 rounded-full"></div> 
-                  Active Medication
+              <div className="space-y-4 border-t border-line pt-4">
+                <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-ink-subtle">
+                  <span aria-hidden="true" className="h-1 w-1 rounded-full bg-success" />
+                  {t('dashboard.identity.medication')}
                 </h4>
                 <div className="space-y-2">
                   {user?.profile?.medications?.slice(0, 3).map((m, i) => (
-                    <div key={i} className="flex justify-between items-center text-xs">
-                      <span className="font-black text-slate-700 uppercase tracking-tight truncate max-w-[150px]">{m.nom}</span>
-                      <span className="font-mono text-slate-400">{m.dosage1}</span>
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="max-w-[150px] truncate font-black uppercase tracking-tight text-ink-subtle">{m.nom}</span>
+                      <span className="font-mono text-ink-muted">{m.dosage1}</span>
                     </div>
                   ))}
                   {(!user?.profile?.medications || user?.profile?.medications.length === 0) && (
-                    <p className="text-sm text-slate-400 italic">None currently active.</p>
+                    <EmptyNote>{t('dashboard.identity.medicationEmpty')}</EmptyNote>
                   )}
                 </div>
               </div>
             </div>
-            
-            {/* Clinical Footer */}
-            <div className="bg-[#0F172A] px-6 py-4 text-white flex items-center justify-between">
-               <div className="flex flex-col">
-                 <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 leading-none">Last Updated</span>
-                 <span className="text-[10px] font-mono font-bold leading-none mt-1">
-                   {user?.profile?.updatedAt
-                      ? new Date(user.profile.updatedAt).toLocaleDateString()
-                      : 'Not yet saved'}
-                 </span>
-               </div>
-               <ShieldAlert size={16} className="text-blue-500 opacity-50" />
+
+            <div className="flex items-center justify-between bg-hero px-6 py-4 text-on-hero">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black uppercase leading-none tracking-widest text-on-hero-muted">{t('dashboard.identity.lastUpdated')}</span>
+                <span className="mt-1 font-mono text-[10px] font-bold leading-none">
+                  {/* toLocaleDateString() with no locale renders 09/27/2026 in
+                      the US and 27/09/2026 in France. A patient reading their own
+                      passport needs their own format. */}
+                  {user?.profile?.updatedAt
+                    ? new Date(user.profile.updatedAt).toLocaleDateString(lang)
+                    : t('dashboard.identity.notSaved')}
+                </span>
+              </div>
+              {/* `on-hero-accent`, not `primary`: the footer is a `hero`
+                  surface, and `primary` is only pinned in dark — light-mode
+                  primary measures 3.45:1 here. The icon is decorative
+                  (aria-hidden), so this is not a 1.4.11 failure, but it is the
+                  same wrong-token choice, and it sits 20px from a date a
+                  patient reads. */}
+              <ShieldAlert size={16} className="text-on-hero-accent opacity-50" aria-hidden="true" />
             </div>
           </div>
 
-          {/* Quick Hospital Card */}
-          <div className="bg-blue-600 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-900/10">
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Primary Hospital</span>
-            <p className="mt-2 font-bold leading-tight truncate">{user?.profile?.preferredHospital || 'None set'}</p>
+          <div className="rounded-ui-xl bg-primary p-6 text-on-primary shadow-card-hover">
+            <MicroLabel className="!text-on-primary-muted">{t('dashboard.hospital.title')}</MicroLabel>
+            <p className="mt-2 font-bold leading-tight">{user?.profile?.preferredHospital || t('dashboard.hospital.none')}</p>
             <div className="mt-4 flex items-center justify-between">
-              <div className="font-mono text-[10px] opacity-60">
+              <div className="font-mono text-[10px] text-on-primary-muted">
                 {user?.profile?.latitude
                   ? `${user.profile.latitude.toFixed(4)}, ${user.profile.longitude.toFixed(4)}`
-                  : 'Not set — enable in Passport'}
+                  : t('dashboard.hospital.notSet')}
               </div>
-              <MapPin size={14} className="text-white opacity-80" />
+              <MapPin size={14} className="text-on-primary-muted" aria-hidden="true" />
             </div>
           </div>
-
         </aside>
       </main>
     </div>

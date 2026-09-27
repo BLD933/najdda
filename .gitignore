@@ -14,6 +14,7 @@ yarn-error.log
 
 # Agent / AI Configuration
 .gemini/
+.claude/
 
 # Mobile (Expo / React Native)
 .expo/

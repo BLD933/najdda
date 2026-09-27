@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { useTranslation } from '../../i18n/I18nContext';
 
 const RegisterForm = () => {
   const [formData, setFormData] = useState({
@@ -10,6 +11,7 @@ const RegisterForm = () => {
     password: '',
   });
   const { register, loading, error } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -26,91 +28,69 @@ const RegisterForm = () => {
     }
   };
 
+  // Field descriptors are static literals so Tailwind can see the class names —
+  // and the labels come from the dictionary, not from a hardcoded table.
+  const FIELDS = [
+    { id: 'fullName', key: 'register.fullName', type: 'text', autoComplete: 'name', placeholder: 'register.fullNamePlaceholder', Icon: User },
+    { id: 'email', key: 'register.email', type: 'email', autoComplete: 'email', placeholder: 'register.emailPlaceholder', Icon: Mail },
+    { id: 'password', key: 'register.password', type: 'password', autoComplete: 'new-password', placeholder: 'register.passwordPlaceholder', Icon: Lock },
+  ];
+
   return (
-    <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
-        <p className="text-gray-500 mt-2">Join SHIFAA and start your health journey</p>
+    <div className="w-full max-w-md rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold tracking-tight">{t('register.title')}</h1>
+        <p className="mt-2 text-ink-muted">{t('register.subtitle')}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
-            {error}
-          </div>
-        )}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <User size={18} />
+        <div aria-live="polite">
+          {error && (
+            <div className="mb-4 rounded-ui-sm border border-emergency/40 bg-emergency-subtle p-3 text-sm text-on-emergency-subtle">
+              {error}
             </div>
-            <input
-              name="fullName"
-              type="text"
-              required
-              value={formData.fullName}
-              onChange={handleChange}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              placeholder="John Doe"
-            />
-          </div>
+          )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <Mail size={18} />
+        {FIELDS.map(({ id, key, type, autoComplete, placeholder, Icon }) => (
+          <div key={id}>
+            <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink-muted">{t(key)}</label>
+            <div className="relative">
+              <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-ink-subtle">
+                <Icon size={18} />
+              </div>
+              <input
+                id={id}
+                name={id}
+                type={type}
+                autoComplete={autoComplete}
+                required
+                value={formData[id]}
+                onChange={handleChange}
+                className="block w-full rounded-ui-sm border border-line-strong bg-canvas py-2 pl-10 pr-3 text-ink transition-colors placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none"
+                placeholder={t(placeholder)}
+              />
             </div>
-            <input
-              name="email"
-              type="email"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              placeholder="you@example.com"
-            />
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <Lock size={18} />
-            </div>
-            <input
-              name="password"
-              type="password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              placeholder="••••••••"
-            />
-          </div>
-        </div>
+        ))}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+          className="flex w-full items-center justify-center rounded-ui-sm bg-primary px-4 py-3 font-bold text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50"
         >
           {loading ? (
-            <Loader2 className="animate-spin mr-2" size={20} />
+            <Loader2 className="mr-2 animate-spin" size={20} aria-hidden="true" />
           ) : (
-            <UserPlus className="mr-2" size={20} />
+            <UserPlus className="mr-2" size={20} aria-hidden="true" />
           )}
-          {loading ? 'Creating account...' : 'Create Account'}
+          {loading ? t('register.submitting') : t('register.submit')}
         </button>
 
-        <p className="text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
-            Sign in
+        <p className="text-center text-sm text-ink-muted">
+          {t('register.hasAccount')}{' '}
+          <Link to="/login" className="rounded-ui-sm font-medium text-primary underline underline-offset-2 hover:text-primary-hover">
+            {t('register.signin')}
           </Link>
         </p>
       </form>

@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './features/auth/context/AuthContext';
+import { ThemeProvider } from './features/theme/context/ThemeContext';
+import { I18nProvider, useTranslation } from './features/i18n/I18nContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -10,11 +12,13 @@ import ChatPage from './pages/ChatPage';
 
 const ProtectedRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
-  
+  const { t } = useTranslation();
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-canvas">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <span className="sr-only">{t('app.loading')}</span>
       </div>
     );
   }
@@ -85,9 +89,13 @@ const AppRoutes = () => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </I18nProvider>
+      </ThemeProvider>
     </Router>
   );
 }

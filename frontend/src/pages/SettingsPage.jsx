@@ -2,13 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/context/AuthContext';
 import profileService from '../features/auth/services/profileService';
-import { 
-  ArrowLeft, Save, User, Phone, MapPin, Droplets, 
-  Activity, Languages, Loader2, CheckCircle2 
+import {
+  ArrowLeft, Save, User, Phone, Droplets,
+  Activity, Loader2, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import ThemeToggle from '../features/theme/components/ThemeToggle';
+import LanguageSwitcher from '../features/i18n/LanguageSwitcher';
+import { useTranslation } from '../features/i18n/I18nContext';
+import { tValue, isEmptyValue } from '../features/i18n/valueLabels';
 
 const SettingsPage = () => {
   const { user } = useAuth();
+  const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,7 +52,7 @@ const SettingsPage = () => {
       try {
         const consts = await profileService.getConstants();
         setConstants(consts);
-        
+
         if (user?.profile) {
           setFormData({
             phoneNumber: user.profile.phoneNumber || '',
@@ -65,20 +70,26 @@ const SettingsPage = () => {
             smokingStatus: user.profile.smokingStatus || 'Non-smoker',
             alcoholStatus: user.profile.alcoholStatus || 'Never',
             insuranceType: user.profile.insuranceType || 'None / Self-Pay',
-            chronicDiseases: user.profile.chronicDiseases?.split(', ') || ['None (Healthy)'],
+            // The backend stores bare 'None' for a profile that skipped the
+            // wizard, while the chip list's empty value is 'None (Healthy)'.
+            // Normalizing here makes the "Aucune" chip come up checked for a
+            // healthy profile instead of leaving every chip unchecked.
+            chronicDiseases: (isEmptyValue(user.profile.chronicDiseases)
+              ? ['None (Healthy)']
+              : user.profile.chronicDiseases.split(', ')),
             medications: user.profile.medications || [],
             preferredHospital: user.profile.preferredHospital || '',
             emergencyContacts: user.profile.emergencyContacts || [{ name: '', relationship: '', phone: '' }]
           });
         }
       } catch (err) {
-        setError('Failed to load profile settings');
+        setError(t('settings.error.load'));
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [user]);
+  }, [user, t]);
 
   // Reuse logic from wizard
   const handleChange = (e) => {
@@ -91,8 +102,12 @@ const SettingsPage = () => {
     setSuccess(false);
     setFormData(prev => {
       const current = prev[field];
-      if (value.includes('None')) return { ...prev, [field]: [value] };
-      let updated = current.filter(v => !v.includes('None'));
+      // `isEmptyValue` replaces a former `value.includes('None')` substring
+      // test. It covered both sentinels, but it would also match any future
+      // enum containing the letters "None" — and the empty test is the one
+      // place a false positive silently discards a real selection.
+      if (isEmptyValue(value)) return { ...prev, [field]: [value] };
+      let updated = current.filter(v => !isEmptyValue(v));
       if (updated.includes(value)) {
         updated = updated.filter(v => v !== value);
       } else {
@@ -107,16 +122,21 @@ const SettingsPage = () => {
 
   const handleContactChange = (index, field, value) => {
     setSuccess(false);
-    const newContacts = [...formData.emergencyContacts];
-    newContacts[index][field] = value;
-    setFormData({ ...formData, emergencyContacts: newContacts });
+    setFormData(prev => ({
+      ...prev,
+      // Replace the contact object rather than mutating it. `[...array]` is a
+      // shallow copy: writing through it edited the ORIGINAL object, so React
+      // saw the same reference and the row could fail to repaint.
+      emergencyContacts: prev.emergencyContacts.map((c, i) =>
+        i === index ? { ...c, [field]: value } : c),
+    }));
   };
 
   const addContact = () => {
-    setFormData({
-      ...formData,
-      emergencyContacts: [...formData.emergencyContacts, { name: '', relationship: '', phone: '' }]
-    });
+    setFormData(prev => ({
+      ...prev,
+      emergencyContacts: [...prev.emergencyContacts, { name: '', relationship: '', phone: '' }]
+    }));
   };
 
   // Medication logic
@@ -150,8 +170,8 @@ const SettingsPage = () => {
     setSaving(true);
     setError('');
     try {
-      const payload = { 
-        ...formData, 
+      const payload = {
+        ...formData,
         weight: parseInt(formData.weight),
         height: parseInt(formData.height)
       };
@@ -159,90 +179,145 @@ const SettingsPage = () => {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Update failed');
+      setError(err.response?.data?.message || t('settings.error.update'));
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Loader2 className="animate-spin text-blue-600" size={40} />
+    <div className="min-h-screen flex items-center justify-center bg-canvas">
+      <Loader2 className="animate-spin text-primary" size={40} aria-hidden="true" />
+      <span className="sr-only">{t('settings.loading')}</span>
     </div>
   );
 
+  // Shared field styling. `line-strong` is a real 1.4.11 boundary — it clears
+  // 4.5:1 against the card, so the field is identifiable without relying on its
+  // fill. `focus-visible:outline-none` (not `focus:`) restores the global 2px
+  // ring on keyboard focus; a bare `focus:outline-none` outranks it and left a
+  // 1px border-colour change as the only focus cue, which 2.4.11 rejects.
+  const field =
+    'w-full rounded-ui-sm border border-line-strong bg-surface px-3 py-3 text-ink transition-colors placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none';
+  const label = 'text-sm font-medium text-ink-muted';
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <nav className="bg-white border-b px-6 py-4 sticky top-0 z-50 flex items-center gap-4">
-        <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-gray-100 rounded-full">
-          <ArrowLeft size={20} />
+    <div className="min-h-screen bg-canvas">
+      <nav className="sticky top-0 z-sticky flex items-center gap-4 border-b border-line bg-surface px-6 py-4">
+        <button onClick={() => navigate('/dashboard')} className="rounded-full p-2 text-ink-muted transition-colors hover:bg-surface-3 hover:text-ink" aria-label={t('wizard.backToDashboard')}>
+          <ArrowLeft size={20} aria-hidden="true" />
         </button>
-        <h1 className="text-xl font-bold">Manage Medical Passport</h1>
+        <h1 className="flex-1 text-xl font-bold">{t('settings.title')}</h1>
+        <LanguageSwitcher />
+        <ThemeToggle />
       </nav>
 
-      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-8">
-        {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
-            <CheckCircle2 size={20} />
-            <span className="font-medium">Medical Passport updated successfully!</span>
-          </div>
-        )}
+      {/* The page bottom-padding has to clear the fixed save bar (96px) or the
+          last card — Emergency Contacts — ends up underneath it. */}
+      <form onSubmit={handleSubmit} className="mx-auto max-w-4xl space-y-8 px-6 pb-32 pt-6">
+        <div aria-live="polite">
+          {success && (
+            <div className="mb-6 flex items-center gap-3 rounded-ui-md border border-success/40 bg-success-subtle p-4 text-on-success-subtle">
+              <CheckCircle2 size={20} aria-hidden="true" />
+              <span className="font-medium">{t('settings.saved')}</span>
+            </div>
+          )}
+          {error && (
+            <div className="mb-6 flex items-center gap-3 rounded-ui-md border border-emergency/40 bg-emergency-subtle p-4 text-on-emergency-subtle">
+              <AlertCircle size={20} aria-hidden="true" />
+              <span className="font-medium">{error}</span>
+            </div>
+          )}
+        </div>
 
         {/* SECTION: Identity */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          <h3 className="text-lg font-bold flex items-center gap-2"><User className="text-blue-500" size={20} /> Account Identity</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+          <h2 className="flex items-center gap-2 text-lg font-bold"><User className="text-primary" size={20} aria-hidden="true" /> {t('settings.identity.heading')}</h2>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-500">Full Name</label>
-              <input disabled value={user?.fullName} className="w-full p-3 bg-gray-50 border rounded-xl cursor-not-allowed" />
+              <label htmlFor="fullName" className={label}>{t('settings.identity.fullName')}</label>
+              <input id="fullName" disabled value={user?.fullName} readOnly className={`${field} cursor-not-allowed bg-surface-2 text-ink-subtle`} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-500">Phone Number</label>
-              <input name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} className="w-full p-3 border rounded-xl" />
+              <label htmlFor="phoneNumber" className={label}>{t('settings.identity.phone')}</label>
+              <input id="phoneNumber" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} className={field} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-500">Country</label>
-              <select name="country" value={formData.country} onChange={handleChange} className="w-full p-3 border rounded-xl">
+              <label htmlFor="country" className={label}>{t('settings.identity.country')}</label>
+              <select id="country" name="country" value={formData.country} onChange={handleChange} className={field}>
                 {constants?.geography.COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-500">City</label>
-              <input name="city" value={formData.city} onChange={handleChange} className="w-full p-3 border rounded-xl" />
+              <label htmlFor="city" className={label}>{t('settings.identity.city')}</label>
+              <input id="city" name="city" value={formData.city} onChange={handleChange} className={field} />
+            </div>
+            {/* The language the agent should ANSWER in — distinct from the UI
+                locale set by the switcher in the nav bar. The value was
+                already persisted; it just had no control. */}
+            <div className="space-y-2">
+              <label htmlFor="preferredLanguage" className={label}>{t('wizard.s1.preferredLanguage')}</label>
+              <select id="preferredLanguage" name="preferredLanguage" aria-describedby="preferredLanguage-help" value={formData.preferredLanguage} onChange={handleChange} className={field}>
+                {constants?.medical.LANGUAGES?.map(l => (
+                  <option key={l} value={l}>{tValue(l, 'language', lang)}</option>
+                ))}
+              </select>
+              <p id="preferredLanguage-help" className="text-xs text-ink-subtle">
+                {t('wizard.s1.preferredLanguageHelp')}
+              </p>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* SECTION: Medical Conditions */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          <h3 className="text-lg font-bold flex items-center gap-2"><Activity className="text-blue-500" size={20} /> Medical Conditions</h3>
-          <div className="flex flex-wrap gap-2">
-            {constants?.medical.CHRONIC_CONDITIONS.map(c => (
-              <button key={c} type="button" onClick={() => handleMultiSelect('chronicDiseases', c)}
-                className={`px-4 py-2 rounded-xl border text-sm transition-all ${
-                  formData.chronicDiseases.includes(c) ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold' : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}>{c}</button>
-            ))}
+        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+          <h2 className="flex items-center gap-2 text-lg font-bold"><Activity className="text-primary" size={20} aria-hidden="true" /> {t('settings.conditions.heading')}</h2>
+          <div role="group" aria-label={t('settings.conditions.group')} className="flex flex-wrap gap-2">
+            {constants?.medical.CHRONIC_CONDITIONS.map(c => {
+              const selected = formData.chronicDiseases.includes(c);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={selected}
+                  onClick={() => handleMultiSelect('chronicDiseases', c)}
+                  className={`rounded-ui-sm border px-4 py-2 text-sm transition-colors ${
+                    selected
+                      ? 'border-primary bg-primary-subtle font-bold text-on-primary-subtle'
+                      : 'border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink'
+                  }`}
+                >
+                  {tValue(c, 'chronic', lang)}
+                </button>
+              );
+            })}
           </div>
-        </div>
+        </section>
 
         {/* SECTION: Pharmacy */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          <h3 className="text-lg font-bold flex items-center gap-2"><Droplets className="text-blue-500" size={20} /> Current Medications</h3>
+        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+          <h2 className="flex items-center gap-2 text-lg font-bold"><Droplets className="text-primary" size={20} aria-hidden="true" /> {t('settings.meds.heading')}</h2>
           <div className="relative">
+            <label htmlFor="medication-search" className="sr-only">{t('settings.meds.searchLabel')}</label>
             <input
-              placeholder="Search to add new medication..."
+              id="medication-search"
+              placeholder={t('settings.meds.searchPlaceholder')}
               value={medicationSearch}
               onChange={(e) => setMedicationSearch(e.target.value)}
-              className="w-full p-3 border-2 border-blue-50 rounded-xl outline-none focus:border-blue-500 transition-all"
+              className={`${field} focus:border-primary`}
+              role="combobox"
+              aria-expanded={medicationResults.length > 0}
+              aria-controls="medication-results"
+              aria-autocomplete="list"
             />
-            {searchingMed && <Loader2 className="absolute right-3 top-3 animate-spin text-blue-500" />}
+            {searchingMed && <Loader2 className="absolute right-3 top-3 animate-spin text-primary" aria-hidden="true" />}
             {medicationResults.length > 0 && (
-              <div className="absolute w-full mt-2 bg-white border rounded-xl shadow-xl z-50 overflow-hidden">
+              <div id="medication-results" role="listbox" className="absolute z-dropdown mt-2 w-full overflow-hidden rounded-ui-sm border border-line bg-surface shadow-elevated">
                 {medicationResults.map(m => (
-                  <button key={m.id} type="button" onClick={() => addMedication(m)} className="w-full p-4 text-left hover:bg-blue-50 border-b last:border-0">
-                    <p className="font-bold text-sm">{m.nom}</p>
-                    <p className="text-xs text-gray-500">{m.dosage1}</p>
+                  <button key={m.id} type="button" role="option" aria-selected="false" onClick={() => addMedication(m)} className="w-full border-b border-line p-4 text-left transition-colors last:border-0 hover:bg-primary-subtle">
+                    <p className="text-sm font-bold">{m.nom}</p>
+                    <p className="text-xs text-ink-muted">{m.dosage1}</p>
                   </button>
                 ))}
               </div>
@@ -250,46 +325,65 @@ const SettingsPage = () => {
           </div>
           <div className="space-y-3">
             {formData.medications.map(m => (
-              <div key={m.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border">
+              <div key={m.id} className="flex items-center justify-between rounded-ui-sm border border-line bg-surface-2 p-4">
                 <div>
-                  <p className="font-bold text-gray-800 text-sm">{m.nom}</p>
-                  <p className="text-xs text-gray-500">{m.dosage1}</p>
+                  <p className="text-sm font-bold text-ink">{m.nom}</p>
+                  <p className="text-xs text-ink-muted">{m.dosage1}</p>
                 </div>
-                <button type="button" onClick={() => setFormData(p => ({ ...p, medications: p.medications.filter(x => x.id !== m.id) }))} className="text-red-500 font-bold text-xs">Remove</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(t('settings.meds.confirmRemove', { name: m.nom }))) {
+                      setFormData(p => ({ ...p, medications: p.medications.filter(x => x.id !== m.id) }));
+                    }
+                  }}
+                  className="rounded-ui-sm px-2 py-1 text-xs font-bold text-emergency transition-colors hover:bg-emergency-subtle"
+                >
+                  {t('settings.meds.remove')}<span className="sr-only"> {m.nom}</span>
+                </button>
               </div>
             ))}
+            {formData.medications.length === 0 && (
+              <p className="rounded-ui-sm border border-dashed border-line bg-surface-2 p-6 text-center text-sm text-ink-muted">
+                {t('settings.meds.empty')}
+              </p>
+            )}
           </div>
-        </div>
+        </section>
 
         {/* SECTION: Emergency */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold flex items-center gap-2"><Phone className="text-red-500" size={20} /> Emergency Contacts</h3>
-            <button type="button" onClick={addContact} className="text-blue-600 font-bold text-sm">+ Add Contact</button>
+        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-bold"><Phone className="text-emergency" size={20} aria-hidden="true" /> {t('settings.emergency.heading')}</h2>
+            <button type="button" onClick={addContact} className="rounded-ui-sm px-2 py-1 text-sm font-bold text-primary transition-colors hover:bg-primary-subtle">
+              {t('settings.emergency.addContact')}
+            </button>
           </div>
           <div className="space-y-4">
             {formData.emergencyContacts.map((c, i) => (
-              <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-2xl">
-                <input placeholder="Name" value={c.name} onChange={(e) => handleContactChange(i, 'name', e.target.value)} className="p-3 border rounded-xl bg-white" />
-                <select value={c.relationship} onChange={(e) => handleContactChange(i, 'relationship', e.target.value)} className="p-3 border rounded-xl bg-white">
-                  <option value="">Relationship</option>
-                  {constants?.medical.RELATIONSHIPS.map(r => <option key={r} value={r}>{r}</option>)}
+              <div key={i} className="grid grid-cols-1 gap-4 rounded-ui-md border border-line bg-surface-2 p-4 md:grid-cols-3">
+                <input aria-label={t('contacts.nameOf', { n: i + 1 })} placeholder={t('contacts.name')} value={c.name} onChange={(e) => handleContactChange(i, 'name', e.target.value)} className={field} />
+                <select aria-label={t('contacts.relationshipOf', { n: i + 1 })} value={c.relationship} onChange={(e) => handleContactChange(i, 'relationship', e.target.value)} className={field}>
+                  <option value="">{t('contacts.relationship')}</option>
+                  {constants?.medical.RELATIONSHIPS.map(r => (
+                    <option key={r} value={r}>{tValue(r, 'relationship', lang)}</option>
+                  ))}
                 </select>
-                <input placeholder="Phone" value={c.phone} onChange={(e) => handleContactChange(i, 'phone', e.target.value)} className="p-3 border rounded-xl bg-white" />
+                <input aria-label={t('contacts.phoneOf', { n: i + 1 })} placeholder={t('contacts.phone')} type="tel" value={c.phone} onChange={(e) => handleContactChange(i, 'phone', e.target.value)} className={field} />
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* Sticky Save Footer */}
-        <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t flex justify-center z-50 shadow-2xl">
-          <button 
-            type="submit" 
+        {/* Save bar. z-modal, not z-sticky: nothing may sit over a primary action. */}
+        <div className="fixed inset-x-0 bottom-0 z-modal flex justify-center border-t border-line bg-surface p-6 shadow-elevated">
+          <button
+            type="submit"
             disabled={saving}
-            className="max-w-xl w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 transition-all"
+            className="flex w-full max-w-xl items-center justify-center gap-2 rounded-ui-md bg-primary py-4 font-bold text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50"
           >
-            {saving ? <Loader2 className="animate-spin" /> : <Save />} 
-            {saving ? 'Saving Changes...' : 'Save Medical Passport Updates'}
+            {saving ? <Loader2 className="animate-spin" size={20} aria-hidden="true" /> : <Save size={20} aria-hidden="true" />}
+            {saving ? t('settings.saving') : t('settings.save')}
           </button>
         </div>
       </form>

@@ -1,1 +1,153 @@
 @import "tailwindcss";
+
+/* Class-based dark mode so the theme can be toggled by hand, not only by the OS.
+   Matches docs/design-tokens.md § Theme switching. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic tokens. A component must never write `blue-600` or `#0F172A` again —
+   it writes `bg-primary` / `text-ink` / `border-line`. That rule is what makes
+   dark mode free. Values and contrast ratios: docs/design-tokens.md. */
+@theme {
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8fafc;
+  --color-surface-3: #f1f5f9;
+
+  --color-ink: #0f172a;
+  --color-ink-muted: #64748b;
+  --color-ink-subtle: #475569;
+
+  /* Two border tiers. `line` is decorative (1.23:1 — not a 1.4.11 boundary);
+     `line-strong` is a form field's edge, which IS required to identify the
+     input, so it clears 4.5:1 rather than the 3:1 minimum. slate-500 is the
+     lowest ramp step that does — slate-400 is only 2.45:1 and would read as
+     text rather than as a border. */
+  --color-line: #e2e8f0;
+  --color-line-strong: #64748b;
+
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-subtle: #eff6ff;
+  --color-on-primary: #ffffff;
+  --color-on-primary-subtle: #1d4ed8;
+
+  /* The hero is an accent panel, not a second theme. Its surface is pinned dark
+     in BOTH themes so the children are theme-independent — inverting it made
+     every ink inside it fail in whichever theme it wasn't tuned for.
+     `on-primary-muted` is muted ink ON the primary fill (not on the hero), so
+     it is not a hero value and does not get the hero's immunity. blue-50 is
+     the nearest step that clears 4.5:1 on the light primary (4.75:1) — the
+     whole 100–300 range sits between 2.87 and 4.24 and all fail. */
+  --color-hero: #0f172a;
+  --color-on-hero: #f8fafc;
+  --color-on-hero-muted: #94a3b8;
+  --color-on-primary-muted: #eff6ff;
+  /* Accent for the greeting INSIDE the hero panel. Not `primary`: the hero is
+     pinned dark in both themes, but `primary` is not — light-mode primary
+     (#2563eb) only reaches 3.45:1 on the hero surface. blue-500 is the
+     nearest ramp step that clears 4.5:1 (4.85:1) and reads as the same blue. */
+  --color-on-hero-accent: #3b82f6;
+
+  --color-emergency: #dc2626;
+  --color-emergency-hover: #b91c1c;
+  --color-emergency-subtle: #fef2f2;
+  --color-on-emergency: #ffffff;
+  --color-on-emergency-subtle: #b91c1c;
+
+  --color-success: #22c55e;
+  --color-success-subtle: #f0fdf4;
+  --color-on-success-subtle: #15803d;
+
+  --color-warning: #f59e0b;
+  --color-warning-subtle: #fffbeb;
+  --color-on-warning-subtle: #b45309;
+
+  /* `ui-` prefix: the bare `sm/md/lg/xl` names already mean spacing in
+     Tailwind's default radius scale, and ~70 existing call sites use them. */
+  --radius-ui-sm: 0.5rem;
+  --radius-ui-md: 1rem;
+  --radius-ui-lg: 1.5rem;
+  --radius-ui-xl: 2rem;
+
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --shadow-card-hover: 0 12px 24px -8px rgb(15 23 42 / 0.12);
+  --shadow-hero: 0 24px 48px -12px rgb(15 23 42 / 0.25);
+  --shadow-elevated: 0 12px 32px -8px rgb(15 23 42 / 0.16);
+
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-emergency: 30;
+  --z-modal: 40;
+}
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-canvas: #020617;
+  --color-surface: #0f172a;
+  --color-surface-2: #1e293b;
+  --color-surface-3: #334155;
+
+  --color-ink: #f1f5f9;
+  --color-ink-muted: #94a3b8;
+  --color-ink-subtle: #94a3b8;
+
+  /* Dark keeps the light-mode value on purpose: the hero surface is identical
+     in both themes, so its accent must be too. Declaring it here as well
+     keeps the token list symmetric for anyone reading `.dark` as a complete
+     theme definition. */
+  --color-on-hero-accent: #3b82f6;
+
+  --color-line: #334155;
+  /* Lighter than light mode's, not darker: on a #020617 field a dark border
+     disappears. 5.71:1 on surface-2, 7.87:1 on the field fill. */
+  --color-line-strong: #94a3b8;
+
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-subtle: #1e3a5f;
+  --color-on-primary: #0f172a;
+  --color-on-primary-subtle: #bfdbfe;
+  --color-on-primary-muted: #172554;
+
+  --color-emergency: #ef4444;
+  --color-emergency-hover: #f87171;
+  --color-emergency-subtle: #450a0a;
+  --color-on-emergency: #0f172a;
+  --color-on-emergency-subtle: #f87171;
+
+  --color-success: #4ade80;
+  --color-success-subtle: #052e16;
+  --color-on-success-subtle: #bbf7d0;
+
+  --color-warning: #fbbf24;
+  --color-warning-subtle: #451a03;
+  --color-on-warning-subtle: #fde68a;
+}
+
+html {
+  background-color: var(--color-canvas);
+}
+
+/* One focus treatment everywhere: visible on both themes, keyboard-only. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

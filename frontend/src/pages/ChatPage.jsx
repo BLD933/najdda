@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, ShieldAlert, RotateCcw, Phone } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, ShieldAlert, RotateCcw, Phone, Activity } from 'lucide-react';
 import apiClient from '../api/apiClient';
+import ThemeToggle from '../features/theme/components/ThemeToggle';
+import LanguageSwitcher from '../features/i18n/LanguageSwitcher';
+import { useTranslation } from '../features/i18n/I18nContext';
 
 const EMERGENCY_BY_COUNTRY = {
   Morocco: '150', Algeria: '14', Tunisia: '190', France: '15', USA: '911', Canada: '911', UK: '999', Spain: '112',
@@ -9,6 +12,7 @@ const EMERGENCY_BY_COUNTRY = {
 
 export default function ChatPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -69,7 +73,7 @@ export default function ChatPage() {
     } catch (err) {
       setMessages((m) => [
         ...m,
-        { role: 'assistant', content: 'I could not reach the medical service. If this is urgent, call the emergency number now.', error: true },
+        { role: 'assistant', content: t('app.error.network'), error: true },
       ]);
     } finally {
       setSending(false);
@@ -84,69 +88,122 @@ export default function ChatPage() {
     setEmergency(null);
   };
 
+  const emergencyNumber = EMERGENCY_BY_COUNTRY[country] || '112';
+  const examples = [
+    t('chat.empty.ex1'),
+    t('chat.empty.ex2'),
+    t('chat.empty.ex3'),
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="bg-white border-b-2 border-slate-100 px-6 py-4 flex items-center gap-4">
-        <button onClick={() => navigate('/dashboard')} className="text-slate-400 hover:text-slate-900 transition-colors" aria-label="Back to dashboard">
-          <ArrowLeft size={24} />
+    <div className="flex min-h-screen flex-col bg-canvas">
+      <header className="z-sticky flex items-center gap-4 border-b border-line bg-surface px-6 py-4">
+        <button onClick={() => navigate('/dashboard')} className="rounded-ui-sm p-1 text-ink-muted transition-colors hover:text-ink" aria-label={t('chat.backToDashboard')}>
+          <ArrowLeft size={24} aria-hidden="true" />
         </button>
         <div className="flex-1">
-          <h1 className="text-lg font-black tracking-tight">Symptom Triage</h1>
-          <p className="text-xs text-slate-400 font-medium">Multi-agent consultation · AR · Darija · FR · EN</p>
+          <h1 className="text-lg font-black tracking-tight">{t('chat.title')}</h1>
+          <p className="text-xs font-medium text-ink-muted">{t('chat.subtitle')}</p>
         </div>
-        <button onClick={reset} className="text-slate-400 hover:text-slate-900 transition-colors" aria-label="Clear conversation" title="Clear conversation">
-          <RotateCcw size={20} />
+        <button
+          onClick={() => { if (window.confirm(t('chat.confirmClear'))) reset(); }}
+          disabled={messages.length === 0}
+          className="rounded-ui-sm p-1 text-ink-muted transition-colors hover:text-ink disabled:opacity-40"
+          aria-label={t('chat.clear')}
+          title={t('chat.clear')}
+        >
+          <RotateCcw size={20} aria-hidden="true" />
         </button>
+        <LanguageSwitcher />
+        <ThemeToggle />
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-3xl mx-auto space-y-4">
-          {messages.length === 0 && (
-            <div className="text-center py-16 text-slate-400">
-              <p className="font-medium">Describe what you are feeling, in any language.</p>
+        <div className="mx-auto max-w-3xl space-y-4">
+          {messages.length === 0 && !sending && (
+            <div className="mx-auto max-w-md py-10 text-center">
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-ui-md bg-primary-subtle text-primary">
+                <Activity size={30} aria-hidden="true" />
+              </div>
+              <h2 className="text-2xl font-black tracking-tight">{t('chat.empty.title')}</h2>
+              <p className="mt-2 text-sm font-medium leading-relaxed text-ink-muted">
+                {t('chat.empty.body')}
+              </p>
+              <ul className="mt-8 grid gap-3 text-left">
+                {examples.map((ex) => (
+                  <li key={ex}>
+                    <button
+                      type="button"
+                      onClick={() => setInput(ex)}
+                      className="w-full rounded-ui-md border border-line bg-surface px-4 py-3 text-left text-sm text-ink-subtle transition-colors hover:border-primary hover:text-ink"
+                    >
+                      « {ex} »
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-8 text-xs font-bold uppercase tracking-widest text-ink-subtle">
+                {t('chat.empty.notEmergency')}
+              </p>
+              <p className="mt-2 text-sm text-ink-muted">
+                {t('chat.empty.emergencyText')}{' '}
+                <a href={`tel:${emergencyNumber}`} className="font-bold text-emergency underline">
+                  {t('chat.empty.callNow', { number: emergencyNumber })}
+                </a>
+                .
+              </p>
             </div>
           )}
 
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] px-5 py-3 rounded-[1.5rem] ${
-                m.role === 'user'
-                  ? 'bg-blue-600 text-white rounded-br-md'
-                  : `bg-white border-2 border-slate-100 rounded-bl-md ${m.error ? 'border-red-300 text-red-700' : ''}`
-              }`}>
-                {m.isEmergency && (
-                  <div className="mb-2 flex items-center gap-2 text-red-600 font-black text-xs uppercase tracking-widest">
-                    <ShieldAlert size={16} /> Emergency detected
-                  </div>
-                )}
-                <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
-                {m.agentsUsed?.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {m.agentsUsed.map((a) => (
-                      <span key={a} className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
-                        {a}
-                      </span>
-                    ))}
-                  </div>
-                )}
+          <div role="log" aria-live="polite" aria-label={t('chat.log')} className="space-y-4">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-ui-lg px-5 py-3 ${
+                  m.role === 'user'
+                    ? 'rounded-br-ui-sm bg-primary text-on-primary'
+                    : `rounded-bl-ui-sm border-2 border-line bg-surface ${m.error ? 'border-emergency text-on-emergency-subtle' : ''}`
+                }`}>
+                  {m.isEmergency && (
+                    <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-on-emergency-subtle">
+                      <ShieldAlert size={16} aria-hidden="true" /> {t('chat.emergencyDetected')}
+                    </div>
+                  )}
+                  {/* The agent's own reply is passed through untouched: the
+                      backend already answers in the language the patient wrote
+                      in (AR / Darija / FR / EN). Translating it here would
+                      overwrite the agent's answer with a UI locale. */}
+                  <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                  {m.agentsUsed?.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {m.agentsUsed.map((a) => (
+                        <span key={a} className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+                          {a}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {sending && (
-            <div className="flex justify-start">
-              <div className="bg-white border-2 border-slate-100 rounded-[1.5rem] rounded-bl-md px-5 py-3 flex items-center gap-2 text-slate-400">
-                <Loader2 size={16} className="animate-spin" /> Consulting agents…
+            {sending && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-2 rounded-ui-lg rounded-bl-ui-sm border-2 border-line bg-surface px-5 py-3 text-ink-muted">
+                  <Loader2 size={16} className="animate-spin" aria-hidden="true" /> {t('chat.consulting')}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {emergency && (
-            <div className="bg-red-600 text-white rounded-[2rem] p-6 mt-4">
-              <h2 className="font-black text-xl mb-2">Emergency detected</h2>
-              <p className="mb-4 text-red-50">Do not wait for a chat reply. Call now.</p>
-              <a href={`tel:${emergency.number}`} className="inline-flex items-center gap-2 bg-white text-red-700 font-black px-6 py-3 rounded-2xl">
-                <Phone size={20} /> Call {emergency.number}
+            <div className="mt-4 rounded-ui-xl bg-emergency p-6 text-on-emergency shadow-card-hover">
+              <h2 className="mb-2 text-xl font-black">{t('chat.emergencyTitle')}</h2>
+              <p className="mb-4 text-on-emergency/90">{t('chat.emergencyBody')}</p>
+              <a
+                href={`tel:${emergency.number}`}
+                className="inline-flex items-center gap-2 rounded-ui-md bg-surface px-6 py-3 font-black text-emergency transition-colors hover:bg-emergency-subtle"
+              >
+                <Phone size={20} aria-hidden="true" /> {t('chat.call', { number: emergency.number })}
               </a>
             </div>
           )}
@@ -155,22 +212,24 @@ export default function ChatPage() {
         </div>
       </main>
 
-      <form onSubmit={send} className="bg-white border-t-2 border-slate-100 px-4 py-4">
-        <div className="max-w-3xl mx-auto flex gap-3">
+      <form onSubmit={send} className="z-sticky border-t border-line bg-surface px-4 py-4">
+        <div className="mx-auto flex max-w-3xl gap-3">
+          <label htmlFor="chat-input" className="sr-only">{t('chat.inputLabel')}</label>
           <input
+            id="chat-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe your symptoms…"
+            placeholder={t('chat.inputPlaceholder')}
             disabled={sending}
-            className="flex-1 px-5 py-3 rounded-full border-2 border-slate-100 focus:border-blue-600 outline-none transition-colors disabled:opacity-50"
+            className="flex-1 rounded-full border-2 border-line-strong bg-canvas px-5 py-3 text-ink transition-colors placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center disabled:opacity-40 transition-colors"
-            aria-label="Send"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-40"
+            aria-label={t('chat.send')}
           >
-            {sending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+            {sending ? <Loader2 size={20} className="animate-spin" aria-hidden="true" /> : <Send size={20} aria-hidden="true" />}
           </button>
         </div>
       </form>

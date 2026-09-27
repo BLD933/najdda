@@ -1,12 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../features/auth/context/AuthContext';
 import profileService from '../features/auth/services/profileService';
-import { User, Phone, MapPin, Droplets, Activity, Languages, Loader2, Save } from 'lucide-react';
+import ThemeToggle from '../features/theme/components/ThemeToggle';
+import LanguageSwitcher from '../features/i18n/LanguageSwitcher';
+import { useTranslation } from '../features/i18n/I18nContext';
+import { tValue, isEmptyValue } from '../features/i18n/valueLabels';
+import { User, Phone, MapPin, Droplets, Activity, Loader2, Save, Plus, X, Check, Navigation, ArrowLeft } from 'lucide-react';
+
+// Step names are KEYS, not strings, and they live at module scope so the
+// stepper below cannot drift out of sync with `totalSteps`. They are resolved
+// through `t()` at render time, NOT at module load — a module-scope `t()` would
+// freeze the label to whatever language was active on first import and it would
+// never change when the user switches.
+const STEPS = [
+  'wizard.step.identity',
+  'wizard.step.vitals',
+  'wizard.step.medical',
+  'wizard.step.pharmacy',
+  'wizard.step.logistics',
+];
 
 const CompleteProfilePage = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
+  const { t, lang } = useTranslation();
+  const liveRegion = useRef(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [constants, setConstants] = useState(null);
@@ -63,12 +80,17 @@ const CompleteProfilePage = () => {
     localStorage.setItem('shifaa_profile_draft', JSON.stringify({ formData, currentStep, isManualHospital }));
   }, [formData, currentStep, isManualHospital]);
 
-  // Auto-load hospitals when user reaches Step 5
+  // Auto-load hospitals when user reaches Step 5. The load happens ONCE per
+  // city: the guards live inside the effect rather than in the dep array,
+  // because listing `formData.city` as a dep re-fetched the list on every
+  // keystroke of any other field that shares the form.
+  const loadedCityRef = useRef(null);
   useEffect(() => {
-    if (currentStep === 5 && formData.city && nearbyHospitals.length === 0) {
-      fetchHospitalsByCity(formData.city);
-    }
-  }, [currentStep]);
+    if (currentStep !== 5 || !formData.city) return;
+    if (loadedCityRef.current === formData.city || nearbyHospitals.length > 0) return;
+    loadedCityRef.current = formData.city;
+    fetchHospitalsByCity(formData.city);
+  }, [currentStep, formData.city, nearbyHospitals.length]);
 
   // Hospital search by name within the city
   useEffect(() => {
@@ -100,7 +122,7 @@ const CompleteProfilePage = () => {
       }
     }, 500);
     return () => clearTimeout(timeout);
-  }, [hospitalSearch]);
+  }, [hospitalSearch, formData.city]);
 
 
 
@@ -116,7 +138,7 @@ const CompleteProfilePage = () => {
         // Using the /api/medicaments/search endpoint with the 'keyword' parameter
         const res = await fetch(`https://medicament-api.vercel.app/api/medicaments/search?keyword=${medicationSearch}`);
         const data = await res.json();
-        
+
         // The API returns an array directly for the search endpoint
         setMedicationResults(Array.isArray(data) ? data.slice(0, 5) : []);
       } catch (err) {
@@ -184,13 +206,21 @@ const CompleteProfilePage = () => {
     }
   };
 
+  // The options are fetched ONCE — this must not re-run on a language switch.
+  // `t` is read through a ref rather than added to the deps: the message is
+  // written into `error` at the moment of failure, and re-fetching the whole
+  // constant list just to re-spell one string would be wasteful and would
+  // re-open the loading gate.
+  const tRef = useRef(t);
+  tRef.current = t;
+
   useEffect(() => {
     const fetchConstants = async () => {
       try {
         const data = await profileService.getConstants();
         setConstants(data);
-      } catch (err) {
-        setError('Failed to load form options');
+      } catch {
+        setError(tRef.current('wizard.error.constants'));
       } finally {
         setLoading(false);
       }
@@ -200,11 +230,11 @@ const CompleteProfilePage = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
     }));
-    
+
     // If user selects "Enter manually", we'll switch to a text input
     if (name === 'preferredHospital' && value === 'Enter manually') {
       setIsManualHospital(true);
@@ -215,49 +245,77 @@ const CompleteProfilePage = () => {
   const handleMultiSelect = (field, value) => {
     setFormData(prev => {
       const current = prev[field];
-      
-      // If selecting 'None' or 'None (Healthy)', clear others
-      if (value.includes('None')) {
+
+      // If selecting 'None' or 'None (Healthy)', clear others.
+      // `isEmptyValue` replaces a former `value.includes('None')` substring
+      // test: it covered both sentinels, but would also match any future enum
+      // containing the letters "None", and here a false positive would
+      // silently discard a real selection.
+      if (isEmptyValue(value)) {
         return { ...prev, [field]: [value] };
       }
-      
-      // If something else is selected, remove 'None'
-      let updated = current.filter(v => !v.includes('None'));
-      
+
+      // If something else is selected, remove the empty sentinel
+      let updated = current.filter(v => !isEmptyValue(v));
+
       if (updated.includes(value)) {
         updated = updated.filter(v => v !== value);
       } else {
         updated = [...updated, value];
       }
-      
+
       // If empty, default to None
       if (updated.length === 0) {
         updated = [field === 'chronicDiseases' ? 'None (Healthy)' : 'None'];
       }
-      
+
       return { ...prev, [field]: updated };
     });
   };
 
   const handleContactChange = (index, field, value) => {
-    const newContacts = [...formData.emergencyContacts];
-    newContacts[index][field] = value;
-    setFormData({ ...formData, emergencyContacts: newContacts });
+    setFormData(prev => ({
+      ...prev,
+      // Replace the contact object rather than mutating it. `[...array]` is a
+      // shallow copy: writing through it edited the ORIGINAL object, so React
+      // saw an unchanged reference and the row could fail to repaint.
+      emergencyContacts: prev.emergencyContacts.map((c, i) =>
+        i === index ? { ...c, [field]: value } : c),
+    }));
   };
 
   const addContact = () => {
-    setFormData({
-      ...formData,
-      emergencyContacts: [...formData.emergencyContacts, { name: '', relationship: '', phone: '' }]
-    });
+    setFormData(prev => ({
+      ...prev,
+      emergencyContacts: [...prev.emergencyContacts, { name: '', relationship: '', phone: '' }]
+    }));
   };
 
   const removeContact = (index) => {
     if (formData.emergencyContacts.length > 1) {
-      const newContacts = formData.emergencyContacts.filter((_, i) => i !== index);
-      setFormData({ ...formData, emergencyContacts: newContacts });
+      setFormData(prev => ({
+        ...prev,
+        emergencyContacts: prev.emergencyContacts.filter((_, i) => i !== index)
+      }));
     }
   };
+
+  // Announced on every step change. The stepper's active state is conveyed by
+  // colour alone otherwise, which is not readable by a screen reader. `loading`
+  // is a dependency because the region is not in the DOM while the profile is
+  // being fetched — without it the first announcement is written to a node that
+  // does not exist yet and the stepper opens completely silent. `t` is a
+  // dependency for the same reason: the announcement must be re-spelled in the
+  // new language when the user switches, not stay frozen in the old one.
+  useEffect(() => {
+    if (liveRegion.current) {
+      liveRegion.current.textContent = t('wizard.stepOf', {
+        current: currentStep,
+        total: totalSteps,
+        step: t(STEPS[currentStep - 1]),
+      });
+    }
+  }, [currentStep, loading, t]);
 
   const nextStep = () => {
     if (validateStep()) {
@@ -275,13 +333,13 @@ const CompleteProfilePage = () => {
     setError('');
     if (currentStep === 1) {
       if (!formData.phoneNumber || !formData.dateOfBirth || !formData.gender || !formData.city) {
-        setError('Please fill in all personal information');
+        setError(t('wizard.error.identity'));
         return false;
       }
     }
     if (currentStep === 2) {
       if (!formData.weight || !formData.height || !formData.bloodType) {
-        setError('Please complete your vital information');
+        setError(t('wizard.error.vitals'));
         return false;
       }
     }
@@ -294,126 +352,183 @@ const CompleteProfilePage = () => {
     setError('');
     try {
       const fullPhoneNumber = `${formData.countryCode} ${formData.phoneNumber}`;
-      
+
       // Clean the payload
-      const payload = { 
-        ...formData, 
+      const payload = {
+        ...formData,
         phoneNumber: fullPhoneNumber,
         weight: formData.weight ? parseInt(formData.weight) : null,
         height: formData.height ? parseInt(formData.height) : null,
       };
-      
+
       // Remove internal frontend-only fields
       delete payload.countryCode;
-      
+
       await profileService.updateProfile(payload);
       localStorage.removeItem('shifaa_profile_draft');
       window.location.href = '/dashboard';
     } catch (err) {
-      const errMsg = err.response?.data?.message || 'Failed to update profile';
+      const errMsg = err.response?.data?.message || t('wizard.error.update');
       const missing = err.response?.data?.missingFields;
       setError(missing ? `${errMsg}: ${missing.join(', ')}` : errMsg);
       setSubmitting(false);
     }
   };
 
+  // Shared field styling, identical to SettingsPage. `line-strong` is a real
+  // 1.4.11 boundary: it clears 4.5:1 against the card, so the field is
+  // identifiable without relying on its fill. `focus-visible:outline-none` (not
+  // `focus:`) restores the global 2px ring on keyboard focus — a bare
+  // `focus:outline-none` outranks the `:where()` rule and erased it.
+  // Split into base + `w-full` so the split phone row below can size its two
+  // halves by flex instead: `w-full` in the shared string would beat both
+  // `w-1/3` and `flex-1` and crush the number input to a sliver.
+  const fieldBase =
+    'rounded-ui-sm border border-line-strong bg-surface px-3 py-3 text-ink transition-colors placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none';
+  const field = `${fieldBase} w-full`;
+  const label = 'text-sm font-medium text-ink-muted';
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
+      <div className="min-h-screen flex items-center justify-center bg-canvas">
+        <Loader2 className="animate-spin text-primary" size={40} aria-hidden="true" />
+        <span className="sr-only">{t('wizard.loading')}</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Progress Stepper */}
-        <div className="mb-8 flex justify-between items-center px-4">
-          {[1, 2, 3, 4].map((step) => (
-            <div key={step} className="flex flex-col items-center flex-1 relative">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all z-10 ${
-                currentStep >= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
-              }`}>
-                {step}
-              </div>
-              <span className={`text-xs mt-2 font-medium ${
-                currentStep >= step ? 'text-blue-600' : 'text-gray-400'
-              }`}>
-                {step === 1 ? 'Identity' : step === 2 ? 'Vitals' : step === 3 ? 'Medical' : step === 4 ? 'Pharmacy' : 'Logistics'}
-              </span>
-              {step < 5 && (
-                <div className={`absolute top-5 left-1/2 w-full h-0.5 z-0 ${
-                  currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
+    <div className="min-h-screen bg-canvas">
+      <nav className="sticky top-0 z-sticky flex items-center gap-4 border-b border-line bg-surface px-6 py-4">
+        <button onClick={() => navigate('/dashboard')} className="rounded-full p-2 text-ink-muted transition-colors hover:bg-surface-3 hover:text-ink" aria-label={t('wizard.backToDashboard')}>
+          <ArrowLeft size={20} aria-hidden="true" />
+        </button>
+        <h1 className="flex-1 text-xl font-bold">{t('wizard.title')}</h1>
+        <LanguageSwitcher />
+        <ThemeToggle />
+      </nav>
 
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-          <div className="bg-blue-600 px-8 py-6 text-white flex justify-between items-center">
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* Step announcement. The stepper conveys its state by colour alone,
+            which a screen reader cannot see, so the move is announced. */}
+        <p ref={liveRegion} role="status" aria-live="polite" className="sr-only" />
+
+        {/* Progress Stepper. Aria-hidden because the live region above carries
+            the same information in a form assistive tech can read. */}
+        <ol className="mb-8 flex items-start px-4" aria-hidden="true">
+          {STEPS.map((key, i) => {
+            const step = i + 1;
+            const done = currentStep > step;
+            const active = currentStep === step;
+            return (
+              <li key={key} className="relative flex flex-1 flex-col items-center">
+                <div className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full font-bold transition-colors ${
+                  done
+                    ? 'bg-primary text-on-primary'
+                    : active
+                      ? 'bg-primary text-on-primary ring-2 ring-primary ring-offset-2 ring-offset-canvas'
+                      : 'bg-surface-3 text-ink-subtle'
+                }`}>
+                  {done ? <Check size={18} strokeWidth={3} /> : step}
+                </div>
+                <span className={`mt-2 text-center text-xs font-medium ${
+                  active ? 'text-primary' : done ? 'text-ink-muted' : 'text-ink-subtle'
+                }`}>
+                  {t(key)}
+                </span>
+                {step < totalSteps && (
+                  <div className={`absolute left-1/2 top-5 h-0.5 w-full ${done ? 'bg-primary' : 'bg-surface-3'}`} />
+                )}
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="overflow-hidden rounded-ui-xl border border-line bg-surface shadow-card">
+          {/* Pinned dark accent panel, not a second theme — see index.css. */}
+          <div className="flex items-center justify-between bg-hero px-8 py-6">
             <div>
-              <h1 className="text-2xl font-bold">Medical Passport</h1>
-              <p className="text-blue-100 mt-1">Step {currentStep} of {totalSteps}</p>
+              <h2 className="text-2xl font-bold text-on-hero">{t(STEPS[currentStep - 1])}</h2>
+              <p className="mt-1 text-on-hero-muted">{t('wizard.heroStepOf', { current: currentStep, total: totalSteps })}</p>
             </div>
-            <Activity size={32} className="opacity-50" />
+            <Activity size={32} className="text-on-hero-muted" aria-hidden="true" />
           </div>
 
           <div className="p-8">
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700">
-                {error}
-              </div>
-            )}
+            <div aria-live="assertive">
+              {error && (
+                <div className="mb-6 rounded-ui-md border border-emergency/40 bg-emergency-subtle p-4 text-on-emergency-subtle">
+                  {error}
+                </div>
+              )}
+            </div>
 
             {/* Step 1: Identity & Location */}
             {currentStep === 1 && (
-              <section className="space-y-6 animate-in fade-in duration-500">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2 mb-6">
-                  <User className="text-blue-600" size={24} /> Personal Identity
+              <section className="space-y-6">
+                <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-ink">
+                  <User className="text-primary" size={24} aria-hidden="true" /> {t('wizard.s1.heading')}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Phone Number</label>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <label htmlFor="cp-countryCode" className={label}>{t('wizard.s1.phone')}</label>
                     <div className="flex gap-2">
-                      <select name="countryCode" value={formData.countryCode} onChange={handleChange}
-                        className="w-1/3 p-3 border rounded-xl bg-gray-50">
+                      <select id="cp-countryCode" name="countryCode" value={formData.countryCode} onChange={handleChange} className={`${fieldBase} w-1/4 shrink-0 sm:w-1/3`}>
                         {constants?.geography.COUNTRY_CODES.map(c => (
                           <option key={c.code} value={c.code}>{c.country} ({c.code})</option>
                         ))}
                       </select>
-                      <input type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange}
-                        className="flex-1 p-3 border rounded-xl" placeholder="600-000000" />
+                      <input id="cp-phoneNumber" type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange}
+                        className={`${fieldBase} min-w-0 flex-1`} placeholder={t('wizard.s1.phonePlaceholder')} />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Date of Birth</label>
-                    <input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} className="w-full p-3 border rounded-xl" />
+                    <label htmlFor="cp-dob" className={label}>{t('wizard.s1.dob')}</label>
+                    <input id="cp-dob" type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} className={field} />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Gender</label>
-                    <select name="gender" value={formData.gender} onChange={handleChange} className="w-full p-3 border rounded-xl">
-                      <option value="">Select</option>
-                      {constants?.medical.GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                    <label htmlFor="cp-gender" className={label}>{t('wizard.s1.gender')}</label>
+                    <select id="cp-gender" name="gender" value={formData.gender} onChange={handleChange} className={field}>
+                      <option value="">{t('wizard.s1.select')}</option>
+                      {constants?.medical.GENDERS.map(g => (
+                      <option key={g} value={g}>{tValue(g, 'gender', lang)}</option>
+                    ))}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Country</label>
-                    <select name="country" value={formData.country} onChange={handleChange} className="w-full p-3 border rounded-xl">
+                    <label htmlFor="cp-country" className={label}>{t('wizard.s1.country')}</label>
+                    <select id="cp-country" name="country" value={formData.country} onChange={handleChange} className={field}>
                       {constants?.geography.COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">City</label>
+                    <label htmlFor="cp-city" className={label}>{t('wizard.s1.city')}</label>
                     {formData.country === 'Morocco' ? (
-                      <select name="city" value={formData.city} onChange={handleChange} className="w-full p-3 border rounded-xl">
-                        <option value="">Select City</option>
+                      <select id="cp-city" name="city" value={formData.city} onChange={handleChange} className={field}>
+                        <option value="">{t('wizard.s1.selectCity')}</option>
                         {constants?.geography.MOROCCAN_CITIES.map(city => <option key={city} value={city}>{city}</option>)}
                       </select>
                     ) : (
-                      <input type="text" name="city" value={formData.city} onChange={handleChange} className="w-full p-3 border rounded-xl" />
+                      <input id="cp-city" type="text" name="city" value={formData.city} onChange={handleChange} className={field} />
                     )}
+                  </div>
+                  {/* `preferredLanguage` was already carried in formData and
+                      saved to the profile, but no control ever set it — the
+                      value silently kept its backend default of 'Arabic'. The
+                      enum already exists in the API (LANGUAGES), so this only
+                      surfaces what the model can already store. Note this is
+                      the language the AGENT should answer in, which is
+                      independent of the UI locale switched in the nav bar. */}
+                  <div className="space-y-2">
+                    <label htmlFor="cp-preferredLanguage" className={label}>{t('wizard.s1.preferredLanguage')}</label>
+                    <select id="cp-preferredLanguage" name="preferredLanguage" aria-describedby="cp-preferredLanguage-help" value={formData.preferredLanguage} onChange={handleChange} className={field}>
+                      {constants?.medical.LANGUAGES?.map(l => (
+                        <option key={l} value={l}>{tValue(l, 'language', lang)}</option>
+                      ))}
+                    </select>
+                    <p id="cp-preferredLanguage-help" className="text-xs text-ink-subtle">
+                      {t('wizard.s1.preferredLanguageHelp')}
+                    </p>
                   </div>
                 </div>
               </section>
@@ -421,37 +536,37 @@ const CompleteProfilePage = () => {
 
             {/* Step 2: Physical Vitals & Lifestyle */}
             {currentStep === 2 && (
-              <section className="space-y-8 animate-in fade-in duration-500">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2 mb-6">
-                  <Activity className="text-blue-600" size={24} /> Health Profile
+              <section className="space-y-8">
+                <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-ink">
+                  <Activity className="text-primary" size={24} aria-hidden="true" /> {t('wizard.s2.heading')}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Weight (kg)</label>
-                    <input type="number" name="weight" value={formData.weight} onChange={handleChange} className="w-full p-3 border rounded-xl" />
+                    <label htmlFor="cp-weight" className={label}>{t('wizard.s2.weight')}</label>
+                    <input id="cp-weight" type="number" name="weight" value={formData.weight} onChange={handleChange} className={field} />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Height (cm)</label>
-                    <input type="number" name="height" value={formData.height} onChange={handleChange} className="w-full p-3 border rounded-xl" />
+                    <label htmlFor="cp-height" className={label}>{t('wizard.s2.height')}</label>
+                    <input id="cp-height" type="number" name="height" value={formData.height} onChange={handleChange} className={field} />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Blood Type</label>
-                    <select name="bloodType" value={formData.bloodType} onChange={handleChange} className="w-full p-3 border rounded-xl">
-                      <option value="">Select</option>
+                    <label htmlFor="cp-bloodType" className={label}>{t('wizard.s2.bloodType')}</label>
+                    <select id="cp-bloodType" name="bloodType" value={formData.bloodType} onChange={handleChange} className={field}>
+                      <option value="">{t('wizard.s1.select')}</option>
                       {constants?.medical.BLOOD_TYPES.map(bt => <option key={bt} value={bt}>{bt}</option>)}
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div className="grid grid-cols-1 gap-6 pt-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Smoking Status</label>
-                    <select name="smokingStatus" value={formData.smokingStatus} onChange={handleChange} className="w-full p-3 border rounded-xl">
+                    <label htmlFor="cp-smoking" className={label}>{t('wizard.s2.smoking')}</label>
+                    <select id="cp-smoking" name="smokingStatus" value={formData.smokingStatus} onChange={handleChange} className={field}>
                       {constants?.medical.LIFESTYLE.SMOKING.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Insurance Type</label>
-                    <select name="insuranceType" value={formData.insuranceType} onChange={handleChange} className="w-full p-3 border rounded-xl">
+                    <label htmlFor="cp-insurance" className={label}>{t('wizard.s2.insurance')}</label>
+                    <select id="cp-insurance" name="insuranceType" value={formData.insuranceType} onChange={handleChange} className={field}>
                       {constants?.medical.INSURANCE_MOROCCO.map(i => <option key={i} value={i}>{i}</option>)}
                     </select>
                   </div>
@@ -459,34 +574,49 @@ const CompleteProfilePage = () => {
               </section>
             )}
 
-            {/* Step 3: Medical & Allergies */}
+            {/* Step 3: Medical & Allergies. The allergy group uses the emergency
+                family while chronic conditions use primary: a drug allergy is
+                the one selection here that must read as a safety flag, not as a
+                preference chip. */}
             {currentStep === 3 && (
-              <section className="space-y-8 animate-in fade-in duration-500">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2 mb-6">
-                  <Droplets className="text-blue-600" size={24} /> Allergies & Conditions
+              <section className="space-y-8">
+                <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-ink">
+                  <Droplets className="text-primary" size={24} aria-hidden="true" /> {t('wizard.s3.heading')}
                 </h3>
-                
+
                 <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-gray-700">Drug Allergies</label>
-                  <div className="flex flex-wrap gap-2">
-                    {constants?.medical.ALLERGIES.DRUGS.map(allergy => (
-                      <button key={allergy} type="button" onClick={() => handleMultiSelect('drugAllergies', allergy)}
-                        className={`px-4 py-2 rounded-xl border text-sm transition-all ${
-                          formData.drugAllergies.includes(allergy) ? 'bg-red-50 border-red-500 text-red-700 font-bold' : 'bg-white text-gray-600'
-                        }`}>{allergy}</button>
-                    ))}
+                  <span id="cp-drug-allergies" className={`${label} block`}>{t('wizard.s3.drugAllergies')}</span>
+                  <div role="group" aria-labelledby="cp-drug-allergies" className="flex flex-wrap gap-2">
+                    {constants?.medical.ALLERGIES.DRUGS.map(allergy => {
+                      const selected = formData.drugAllergies.includes(allergy);
+                      return (
+                        <button key={allergy} type="button" role="checkbox" aria-checked={selected}
+                          onClick={() => handleMultiSelect('drugAllergies', allergy)}
+                          className={`rounded-ui-sm border px-4 py-2 text-sm transition-colors ${
+                            selected
+                              ? 'border-emergency bg-emergency-subtle font-bold text-on-emergency-subtle'
+                              : 'border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink'
+                          }`}>{allergy}</button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <label className="block text-sm font-semibold text-gray-700">Chronic Conditions</label>
-                  <div className="flex flex-wrap gap-2">
-                    {constants?.medical.CHRONIC_CONDITIONS.map(c => (
-                      <button key={c} type="button" onClick={() => handleMultiSelect('chronicDiseases', c)}
-                        className={`px-4 py-2 rounded-xl border text-sm transition-all ${
-                          formData.chronicDiseases.includes(c) ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold' : 'bg-white text-gray-600'
-                        }`}>{c}</button>
-                    ))}
+                  <span id="cp-chronic" className={`${label} block`}>{t('wizard.s3.chronic')}</span>
+                  <div role="group" aria-labelledby="cp-chronic" className="flex flex-wrap gap-2">
+                    {constants?.medical.CHRONIC_CONDITIONS.map(c => {
+                      const selected = formData.chronicDiseases.includes(c);
+                      return (
+                        <button key={c} type="button" role="checkbox" aria-checked={selected}
+                          onClick={() => handleMultiSelect('chronicDiseases', c)}
+                          className={`rounded-ui-sm border px-4 py-2 text-sm transition-colors ${
+                            selected
+                              ? 'border-primary bg-primary-subtle font-bold text-on-primary-subtle'
+                              : 'border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink'
+                          }`}>{tValue(c, 'chronic', lang)}</button>
+                      );
+                    })}
                   </div>
                 </div>
               </section>
@@ -494,33 +624,33 @@ const CompleteProfilePage = () => {
 
             {/* Step 4: Pharmacy (New Medications API Step) */}
             {currentStep === 4 && (
-              <section className="space-y-8 animate-in fade-in duration-500">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2 mb-6">
-                  <Activity className="text-blue-600" size={24} /> Current Medications
+              <section className="space-y-8">
+                <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-ink">
+                  <Activity className="text-primary" size={24} aria-hidden="true" /> {t('wizard.s4.heading')}
                 </h3>
                 <div className="relative">
+                  <label htmlFor="cp-med-search" className="sr-only">{t('wizard.s4.searchLabel')}</label>
                   <input
+                    id="cp-med-search"
                     type="text"
-                    placeholder="Search for medication (e.g. Doliprane, Amoxicillin)..."
+                    placeholder={t('wizard.s4.searchPlaceholder')}
                     value={medicationSearch}
                     onChange={(e) => setMedicationSearch(e.target.value)}
-                    className="w-full p-4 border-2 border-blue-100 rounded-2xl focus:border-blue-500 transition-all outline-none"
+                    className={field}
                   />
-                  {searchingMed && <Loader2 className="absolute right-4 top-4 animate-spin text-blue-500" />}
-                  
+                  {searchingMed && <Loader2 className="absolute right-4 top-4 animate-spin text-primary" aria-hidden="true" />}
+
                   {medicationResults.length > 0 && (
-                    <div className="absolute w-full mt-2 bg-white border rounded-2xl shadow-2xl z-50 overflow-hidden">
+                    <div className="absolute z-dropdown mt-2 w-full overflow-hidden rounded-ui-sm border border-line bg-surface shadow-elevated">
                       {medicationResults.map(med => (
                         <button
                           key={med.id}
                           type="button"
                           onClick={() => addMedication(med)}
-                          className="w-full p-4 text-left hover:bg-blue-50 border-b last:border-0 flex justify-between items-center"
+                          className="w-full border-b border-line p-4 text-left transition-colors last:border-0 hover:bg-primary-subtle"
                         >
-                          <div>
-                            <p className="font-bold text-gray-800">{med.nom}</p>
-                            <p className="text-xs text-gray-500">{med.forme} - {med.dosage1}</p>
-                          </div>
+                          <p className="font-bold text-ink">{med.nom}</p>
+                          <p className="text-xs text-ink-muted">{med.forme} - {med.dosage1}</p>
                         </button>
                       ))}
                     </div>
@@ -528,17 +658,19 @@ const CompleteProfilePage = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="font-medium text-gray-700">Your Medications:</h4>
+                  <h4 className="font-medium text-ink-muted">{t('wizard.s4.yourMedications')}</h4>
                   {formData.medications.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">No medications added yet.</p>
+                    <p className="text-sm text-ink-subtle">{t('wizard.s4.empty')}</p>
                   ) : (
                     formData.medications.map(med => (
-                      <div key={med.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm">
+                      <div key={med.id} className="flex items-center justify-between rounded-ui-md border border-line bg-surface-2 p-4">
                         <div>
-                          <p className="font-bold text-gray-800">{med.nom}</p>
-                          <p className="text-xs text-gray-500">{med.dosage1}</p>
+                          <p className="font-bold text-ink">{med.nom}</p>
+                          <p className="text-xs text-ink-muted">{med.dosage1}</p>
                         </div>
-                        <button type="button" onClick={() => removeMedication(med.id)} className="text-red-500 hover:text-red-700 font-bold">Remove</button>
+                        <button type="button" onClick={() => removeMedication(med.id)} className="rounded-ui-sm px-2 py-1 text-sm font-bold text-emergency transition-colors hover:bg-emergency-subtle">
+                          {t('wizard.s4.remove')}
+                        </button>
                       </div>
                     ))
                   )}
@@ -548,51 +680,59 @@ const CompleteProfilePage = () => {
 
             {/* Step 5: Logistics & Equipment */}
             {currentStep === 5 && (
-              <section className="space-y-8 animate-in fade-in duration-500">
-                <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2 mb-6">
-                  <MapPin className="text-blue-600" size={24} /> Logistics & Emergency
+              <section className="space-y-8">
+                <h3 className="mb-6 flex items-center gap-2 text-xl font-bold text-ink">
+                  <MapPin className="text-primary" size={24} aria-hidden="true" /> {t('wizard.s5.heading')}
                 </h3>
-                
+
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-700">Preferred Hospital</label>
-                    <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
-                      📍 {formData.city || 'No city selected'}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className={label}>{t('wizard.s5.preferredHospital')}</span>
+                    <span className="flex items-center gap-1 rounded-full bg-primary-subtle px-2 py-1 text-xs font-medium text-on-primary-subtle">
+                      <MapPin size={12} aria-hidden="true" /> {formData.city || t('wizard.s5.noCity')}
                     </span>
                   </div>
 
                   {/* Selected Hospital Badge */}
                   {formData.preferredHospital && (
-                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-xl">
-                      <span className="text-sm font-medium text-green-800">✓ {formData.preferredHospital}</span>
+                    <div className="flex items-center justify-between rounded-ui-md border border-success/40 bg-success-subtle p-3">
+                      <span className="flex items-center gap-2 text-sm font-medium text-on-success-subtle">
+                        <Check size={16} aria-hidden="true" /> {formData.preferredHospital}
+                      </span>
                       <button
                         type="button"
                         onClick={() => { setFormData(prev => ({ ...prev, preferredHospital: '' })); setHospitalSearch(''); }}
-                        className="text-xs text-red-500 font-bold"
+                        className="rounded-ui-sm px-2 py-1 text-xs font-bold text-emergency transition-colors hover:bg-emergency-subtle"
                       >
-                        Change
+                        {t('wizard.s5.change')}
                       </button>
                     </div>
                   )}
 
                   {/* Search Input */}
                   <div className="relative">
+                    <label htmlFor="cp-hospital-search" className="sr-only">{t('wizard.s5.searchLabel')}</label>
                     <input
+                      id="cp-hospital-search"
                       type="text"
-                      placeholder={`Search hospital in ${formData.city || 'your city'}...`}
+                      placeholder={t('wizard.s5.searchPlaceholder', {
+                        city: formData.city || t('wizard.s5.searchFallbackCity'),
+                      })}
                       value={hospitalSearch}
                       onChange={(e) => setHospitalSearch(e.target.value)}
-                      className="w-full p-3 border-2 border-blue-100 rounded-xl focus:border-blue-500 outline-none transition-all"
+                      className={field}
                     />
                     {(searchingHospitalName || searchingHospitals) && (
-                      <Loader2 className="absolute right-3 top-3.5 animate-spin text-blue-500" size={18} />
+                      <Loader2 className="absolute right-3 top-3.5 animate-spin text-primary" size={18} aria-hidden="true" />
                     )}
                   </div>
 
                   {/* City-based preloaded results */}
                   {nearbyHospitals.length > 0 && !hospitalSearch && (
-                    <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
-                      <p className="px-4 py-2 text-xs font-semibold text-gray-400 bg-gray-50 border-b">Hospitals in {formData.city}</p>
+                    <div className="overflow-hidden rounded-ui-md border border-line bg-surface shadow-card">
+                      <p className="border-b border-line bg-surface-2 px-4 py-2 text-xs font-semibold text-ink-muted">
+                        {t('wizard.s5.hospitalsIn', { city: formData.city })}
+                      </p>
                       {nearbyHospitals.map(h => (
                         <button
                           key={h.id}
@@ -600,10 +740,10 @@ const CompleteProfilePage = () => {
                           onClick={() => {
                             setFormData(prev => ({ ...prev, preferredHospital: h.name }));
                           }}
-                          className="w-full p-3 text-left hover:bg-blue-50 border-b last:border-0 transition-all"
+                          className="w-full border-b border-line p-3 text-left transition-colors last:border-0 hover:bg-primary-subtle"
                         >
-                          <p className="font-semibold text-gray-800 text-sm">{h.name}</p>
-                          <p className="text-xs text-gray-400">{h.address}</p>
+                          <p className="text-sm font-semibold text-ink">{h.name}</p>
+                          <p className="text-xs text-ink-muted">{h.address}</p>
                         </button>
                       ))}
                     </div>
@@ -611,7 +751,7 @@ const CompleteProfilePage = () => {
 
                   {/* Search results */}
                   {hospitalSearchResults.length > 0 && hospitalSearch && (
-                    <div className="border rounded-xl overflow-hidden shadow-lg bg-white">
+                    <div className="overflow-hidden rounded-ui-md border border-line bg-surface shadow-card">
                       {hospitalSearchResults.map(h => (
                         <button
                           key={h.id}
@@ -621,47 +761,68 @@ const CompleteProfilePage = () => {
                             setHospitalSearch('');
                             setHospitalSearchResults([]);
                           }}
-                          className="w-full p-3 text-left hover:bg-blue-50 border-b last:border-0 transition-all"
+                          className="w-full border-b border-line p-3 text-left transition-colors last:border-0 hover:bg-primary-subtle"
                         >
-                          <p className="font-semibold text-gray-800 text-sm">{h.name}</p>
-                          <p className="text-xs text-gray-400">{h.address}</p>
+                          <p className="text-sm font-semibold text-ink">{h.name}</p>
+                          <p className="text-xs text-ink-muted">{h.address}</p>
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div className="p-6 bg-blue-50 rounded-2xl flex flex-col items-center gap-4">
-                  <p className="text-sm text-blue-800 font-medium text-center">Save your GPS location to help the Locator Agent find the nearest help in emergencies.</p>
-                  <button type="button" onClick={handleGPS} className={`px-6 py-2 rounded-full font-bold transition-all ${
-                    formData.latitude ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
+                <div className="flex flex-col items-center gap-4 rounded-ui-md bg-primary-subtle p-6">
+                  <p className="text-center text-sm font-medium text-on-primary-subtle">{t('wizard.s5.gpsText')}</p>
+                  <button type="button" onClick={handleGPS} className={`flex items-center gap-2 rounded-full px-6 py-2 font-bold transition-colors ${
+                    formData.latitude
+                      ? 'bg-success-subtle text-on-success-subtle'
+                      : 'bg-primary text-on-primary hover:bg-primary-hover'
                   }`}>
-                    {formData.latitude ? 'Location Saved ✓' : '📍 Save My Current Location'}
+                    {formData.latitude
+                      ? <><Check size={16} aria-hidden="true" /> {t('wizard.s5.locationSaved')}</>
+                      : <><Navigation size={16} aria-hidden="true" /> {t('wizard.s5.saveLocation')}</>}
                   </button>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <Phone className="text-red-600" size={20} /> Emergency Contacts
+                  <div className="flex items-center justify-between">
+                    <h4 className="flex items-center gap-2 font-semibold text-ink">
+                      <Phone className="text-emergency" size={20} aria-hidden="true" /> {t('contacts.heading')}
                     </h4>
-                    <button type="button" onClick={addContact} className="text-blue-600 font-bold">+ Add</button>
+                    <button type="button" onClick={addContact} className="flex items-center gap-1 rounded-ui-sm px-2 py-1 text-sm font-bold text-primary transition-colors hover:bg-primary-subtle">
+                      <Plus size={16} aria-hidden="true" /> {t('contacts.add')}
+                    </button>
                   </div>
                   {formData.emergencyContacts.map((contact, index) => (
-                    <div key={index} className="p-4 bg-gray-50 rounded-xl space-y-4 border border-gray-100">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <input placeholder="Name" value={contact.name} onChange={(e) => handleContactChange(index, 'name', e.target.value)} className="p-3 border rounded-xl bg-white" />
-                        <select 
-                          value={contact.relationship} 
-                          onChange={(e) => handleContactChange(index, 'relationship', e.target.value)} 
-                          className="p-3 border rounded-xl bg-white"
+                    <div key={index} className="space-y-2 rounded-ui-md border border-line bg-surface-2 p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-ink-subtle">{t('contacts.row', { n: index + 1 })}</span>
+                        {formData.emergencyContacts.length > 1 && (
+                          <button type="button" onClick={() => removeContact(index)}
+                            className="rounded-ui-sm p-1 text-ink-muted transition-colors hover:bg-emergency-subtle hover:text-emergency"
+                            aria-label={t('contacts.removeOne', { n: index + 1 })}
+                          >
+                            <X size={16} aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <label className="sr-only" htmlFor={`cp-c${index}-name`}>{t('contacts.nameOf', { n: index + 1 })}</label>
+                        <input id={`cp-c${index}-name`} placeholder={t('contacts.name')} value={contact.name} onChange={(e) => handleContactChange(index, 'name', e.target.value)} className={field} />
+                        <label className="sr-only" htmlFor={`cp-c${index}-rel`}>{t('contacts.relationshipOf', { n: index + 1 })}</label>
+                        <select
+                          id={`cp-c${index}-rel`}
+                          value={contact.relationship}
+                          onChange={(e) => handleContactChange(index, 'relationship', e.target.value)}
+                          className={field}
                         >
-                          <option value="">Relationship</option>
+                          <option value="">{t('contacts.relationship')}</option>
                           {constants?.medical.RELATIONSHIPS.map(r => (
-                            <option key={r} value={r}>{r}</option>
+                            <option key={r} value={r}>{tValue(r, 'relationship', lang)}</option>
                           ))}
                         </select>
-                        <input placeholder="Phone" value={contact.phone} onChange={(e) => handleContactChange(index, 'phone', e.target.value)} className="p-3 border rounded-xl bg-white" />
+                        <label className="sr-only" htmlFor={`cp-c${index}-phone`}>{t('contacts.phoneOf', { n: index + 1 })}</label>
+                        <input id={`cp-c${index}-phone`} type="tel" placeholder={t('contacts.phone')} value={contact.phone} onChange={(e) => handleContactChange(index, 'phone', e.target.value)} className={field} />
                       </div>
                     </div>
                   ))}
@@ -672,17 +833,17 @@ const CompleteProfilePage = () => {
             {/* Navigation Buttons */}
             <div className="mt-12 flex justify-between gap-4">
               {currentStep > 1 && (
-                <button type="button" onClick={prevStep} className="px-8 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all">
-                  Back
+                <button type="button" onClick={prevStep} className="rounded-ui-md bg-surface-2 px-8 py-3 font-bold text-ink-muted transition-colors hover:bg-surface-3 hover:text-ink">
+                  {t('wizard.back')}
                 </button>
               )}
               {currentStep < totalSteps ? (
-                <button type="button" onClick={nextStep} className="ml-auto px-10 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
-                  Next Step
+                <button type="button" onClick={nextStep} className="ml-auto rounded-ui-md bg-primary px-10 py-3 font-bold text-on-primary transition-colors hover:bg-primary-hover">
+                  {t('wizard.next')}
                 </button>
               ) : (
-                <button onClick={handleSubmit} disabled={submitting} className="ml-auto px-10 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-200 flex items-center gap-2">
-                  {submitting ? <Loader2 className="animate-spin" /> : <Save />} Finalize Passport
+                <button onClick={handleSubmit} disabled={submitting} className="ml-auto flex items-center gap-2 rounded-ui-md bg-primary px-10 py-3 font-bold text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50">
+                  {submitting ? <Loader2 className="animate-spin" size={20} aria-hidden="true" /> : <Save size={20} aria-hidden="true" />} {submitting ? t('wizard.saving') : t('wizard.finalize')}
                 </button>
               )}
             </div>
