@@ -3,9 +3,9 @@ const router = express.Router();
 const authMiddleware = require('../middlewares/authMiddleware');
 const { runOrchestrator } = require('../../core/orchestrator/graph');
 const chatRepository = require('../../infra/repositories/ChatRepository');
-const { getEmergencyNumber } = require('../middlewares/emergencyMiddleware');
+const { emergencyMiddleware, getEmergencyNumber } = require('../middlewares/emergencyMiddleware');
 
-router.post('/chat', authMiddleware, async (req, res) => {
+router.post('/chat', authMiddleware, emergencyMiddleware, async (req, res) => {
   try {
     const { message } = req.body;
     if (!message || !message.trim()) {

@@ -42,6 +42,10 @@ export default function RootLayout() {
         <Stack.Screen name="(main)/settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="(main)/follow-up-modal" options={{ presentation: 'transparentModal', animation: 'fade' }} />
         <Stack.Screen name="(main)/fall-detection" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="(main)/allergy" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="(main)/children" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="(main)/emergency" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="(main)/medications" options={{ animation: 'slide_from_right' }} />
       </Stack>
     </AuthProvider>
   );

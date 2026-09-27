@@ -5,6 +5,7 @@ import { ThumbsUp, AlertTriangle, PhoneCall, MessageSquare } from 'lucide-react-
 import * as Linking from 'expo-linking';
 import { useAuth } from '../../src/features/auth/context/AuthContext';
 import { resolveCheckIn, triggerEmergencyAutomation } from '../../src/features/chat/services/localFollowupService';
+import { getEmergencyNumber } from '../../src/features/safety/services/emergencyNumber';
 
 export default function FollowUpModalScreen() {
   const router = useRouter();
@@ -14,7 +15,8 @@ export default function FollowUpModalScreen() {
   const isEmergencyFallback = params.emergencyFallback === 'true';
   
   const { user } = useAuth();
-  
+  const emergencyNumber = getEmergencyNumber(user?.profile?.country);
+
   // If triggered by no-response timeout, jump straight to emergency screen
   const [step, setStep] = useState(isEmergencyFallback ? 'EMERGENCY' : 'CHECK');
   
@@ -32,7 +34,7 @@ export default function FollowUpModalScreen() {
   };
   
   const handleCallSamu = () => {
-    Linking.openURL('tel:15');
+    Linking.openURL(`tel:${emergencyNumber}`);
   };
   
   const handleAlertContact = () => {
@@ -66,7 +68,7 @@ export default function FollowUpModalScreen() {
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#DC2626' }]} onPress={handleCallSamu}>
               <PhoneCall size={20} color="#FFFFFF" />
-              <Text style={styles.actionBtnText}>Call Emergency (15)</Text>
+              <Text style={styles.actionBtnText}>Call Emergency ({emergencyNumber})</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#004ac6' }]} onPress={handleAlertContact}>

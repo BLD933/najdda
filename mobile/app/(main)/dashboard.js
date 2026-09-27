@@ -382,7 +382,7 @@ export default function DashboardScreen() {
           {/* Allergy Passport */}
           <TouchableOpacity 
             style={styles.ecoCard}
-            onPress={() => router.push('/(main)/settings')} // Allergy passport lives in settings/vault
+            onPress={() => router.push('/(main)/allergy')}
             activeOpacity={0.9}
           >
             <ImageBackground 

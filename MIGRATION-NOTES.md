@@ -95,12 +95,8 @@ All pre-existing upstream, surfaced by testing:
 
 ## Known gaps
 
-- **Streaming is not implemented.** `LlmClient.completeStream()` works, but no route uses
-  it. `NAjdda-README.md` claims SSE. `ChatService.sendMessageStream` calls a
-  `streamAssess` that does not exist on TriageAgent.
-- **`emergencyMiddleware` does not guard `/api/orchestrator/chat`** — only the five
-  `/check` and `/message` routes. The orchestrator catches emergencies downstream via
-  triage severity. Both paths verified. Left as-is; the README implies otherwise.
+- **Streaming.** SSE route exists at `POST /api/chat/message` (uses `emergencyMiddleware`). `ChatService.sendMessageStream` exists. However, `TriageAgent.streamAssess` is still a mock — it yields the full response as a single chunk. `LlmClient.completeStream()` is ready but not yet wired in. Partial implementation: real token streaming requires swapping `streamAssess` to call `llmClient.completeStream()`.
+- **`emergencyMiddleware` now guards `/api/orchestrator/chat`** — added on 2026-09-27. The five `/check` and `/message` routes plus the orchestrator route are now all covered.
 - **Diagnosis, Report, Followup, Locator** are now wired into `AGENT_MAP` and routable
   (they were dead code upstream). The router prompt tells it to pick them only on an
   explicit request, and defaults to `triage` otherwise. `diagnosis` runs in parallel with

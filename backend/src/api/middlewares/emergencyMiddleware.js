@@ -119,11 +119,11 @@ const emergencyMiddleware = async (req, res, next) => {
     console.log(`🛡️ [Safety Gateway Input] User: ${req.user?.email || 'Guest'} | Msg: "${message}"`);
     console.log(`🛡️ [Safety Gateway Profile] Chronic: ${profile.chronicDiseases || 'None'} | Meds: ${JSON.stringify(profile.medications || [])}`);
 
-    // ── GEMMA E2B SAFETY GATEWAY (with 12-second fail-safe) ───────────────
+    // ── GEMMA E2B SAFETY GATEWAY (with 2-second fail-safe) ───────────────
     const triageResult = await Promise.race([
       callVitalDangerClassifier(message, profile),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Triage classifier timeout')), 12000)
+        setTimeout(() => reject(new Error('Triage classifier timeout')), 2000)
       ),
     ]).catch((err) => {
       console.warn(`⚠️ [SAFETY GATEWAY FAIL-SAFE] ${err.message} → defaulting to danger_vital: true`);
@@ -167,6 +167,29 @@ const emergencyMiddleware = async (req, res, next) => {
           message,
           result: emergencyResult,
         });
+      }
+
+      // Fire n8n emergency workflow (non-blocking)
+      if (process.env.N8N_EMERGENCY_WEBHOOK_URL) {
+        fetch(process.env.N8N_EMERGENCY_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isEmergency: true,
+            userId: req.user?.id,
+            message,
+            location: {
+              lat: profile.latitude,
+              lng: profile.longitude,
+            },
+            emergencyContact: profile.emergencyContacts?.[0] || {},
+            medicalProfile: {
+              allergies: profile.drugAllergies,
+              conditions: profile.chronicDiseases,
+              bloodType: profile.bloodType,
+            },
+          }),
+        }).catch((err) => console.error('n8n webhook error:', err.message));
       }
 
       return res.status(200).json(emergencyResult);

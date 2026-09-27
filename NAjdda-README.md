@@ -71,7 +71,7 @@ Compact profile injection, regex JSON extraction, think-tag stripping, 1024 toke
 | Layer | Model | Use |
 | :--- | :--- | :--- |
 | FAST | `gemini-2.5-flash` | routing, safety gateway, triage, <500ms |
-| DEEP | `gemini-2.5-pro` | diagnosis, synthesis empathique |
+| DEEP | `gemini-3.1-pro-preview` (or `gemini-2.5-flash`) | diagnosis, synthesis empathique |
 | VISION | `gemini-2.5-flash` (multimodal) | prescriptions, rashes |
 
 1. Get key: https://aistudio.google.com → Create API Key

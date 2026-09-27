@@ -24,6 +24,8 @@ import EmergencyModal from '../../src/features/chat/components/EmergencyModal';
 import conversationService from '../../src/features/chat/services/conversationService';
 import { scheduleLocalFollowup } from '../../src/features/chat/services/localFollowupService';
 import { useChatFollowup } from '../../src/features/chat/hooks/useChatFollowup';
+import { getEmergencyNumber } from '../../src/features/safety/services/emergencyNumber';
+import { useAuth } from '../../src/features/auth/context/AuthContext';
 
 const TRIMESTERS = [
   { value: '1', label: 'T1', full: '1er trimestre' },
@@ -73,6 +75,8 @@ function formatAssistantReply(result) {
 
 export default function PregnancyScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const emergencyNumber = getEmergencyNumber(user?.profile?.country);
   const flatListRef = useRef(null);
   const [trimester, setTrimester] = useState('2');
   const [medication, setMedication] = useState('');
@@ -109,7 +113,7 @@ export default function PregnancyScreen() {
 
   const handleQuickAction = (action) => {
     if (action.isDanger) {
-      setEmergencyInfo({ number: '15' });
+      setEmergencyInfo({ number: emergencyNumber });
     } else {
       setInput((prev) => prev + (prev ? ', ' : '') + action.label);
     }

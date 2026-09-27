@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import { useAuth } from '../../src/features/auth/context/AuthContext';
+import { getEmergencyNumber } from '../../src/features/safety/services/emergencyNumber';
 import {
   Phone,
   MapPin,
@@ -35,6 +37,8 @@ const CARD_MARGIN = 12;
 
 export default function EmergencyScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const emergencyNumber = getEmergencyNumber(user?.profile?.country);
   const [sharingLocation, setSharingLocation] = useState(false);
   const [isLocationShared, setIsLocationShared] = useState(true);
 
@@ -78,14 +82,14 @@ export default function EmergencyScreen() {
   }, []);
 
   const callEmergency = () => {
-    Linking.openURL('tel:911');
+    Linking.openURL(`tel:${emergencyNumber}`);
   };
 
   const triggerSOSAlert = async () => {
     try {
       Alert.alert(
         "Signal Emergency",
-        "This will broadcast a high-priority SOS alert with your location and dial 911. Do you want to proceed?",
+        `This will broadcast a high-priority SOS alert with your location and dial ${emergencyNumber}. Do you want to proceed?`,
         [
           { text: "Cancel", style: "cancel" },
           { 
@@ -123,7 +127,7 @@ export default function EmergencyScreen() {
         title: 'My Emergency Location',
       });
     } catch (err) {
-      Alert.alert('Error', 'Could not get your location. Please call 911.');
+      Alert.alert('Error', `Could not get your location. Please call ${emergencyNumber}.`);
     } finally {
       setSharingLocation(false);
     }
