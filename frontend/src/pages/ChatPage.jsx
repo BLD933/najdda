@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, ShieldAlert, RotateCcw, Phone, Activity } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, ShieldAlert, RotateCcw, Phone, Activity, Mic, MicOff } from 'lucide-react';
 import apiClient from '../api/apiClient';
+import { useAuth } from '../features/auth/context/AuthContext';
 import ThemeToggle from '../features/theme/components/ThemeToggle';
 import LanguageSwitcher from '../features/i18n/LanguageSwitcher';
 import { useTranslation } from '../features/i18n/I18nContext';
+import { useSpeechRecognition } from '../features/voice/hooks/useSpeechRecognition';
+import { speak, stop as stopSpeech } from '../features/voice/services/speechService';
 
 const EMERGENCY_BY_COUNTRY = {
   Morocco: '150', Algeria: '14', Tunisia: '190', France: '15', USA: '911', Canada: '911', UK: '999', Spain: '112',
@@ -13,12 +16,38 @@ const EMERGENCY_BY_COUNTRY = {
 export default function ChatPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [emergency, setEmergency] = useState(null);
   const [country, setCountry] = useState('Morocco');
   const bottomRef = useRef(null);
+
+  const preferredLang = user?.profile?.preferredLanguage || 'Arabic';
+  const { isListening, isSupported, start: startListening, stop: stopListening } = useSpeechRecognition({
+    lang: preferredLang,
+    onResult: (transcript, isFinal) => {
+      if (isFinal) {
+        setInput(transcript);
+        setTimeout(() => {
+          const form = document.querySelector('form');
+          if (form) form.requestSubmit();
+        }, 100);
+      } else {
+        setInput(transcript);
+      }
+    },
+  });
+
+  const handleMicToggle = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      stopSpeech();
+      startListening();
+    }
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -51,6 +80,7 @@ export default function ChatPage() {
     const text = input.trim();
     if (!text || sending) return;
 
+    stopSpeech();
     setInput('');
     setSending(true);
     setMessages((m) => [...m, { role: 'user', content: text }]);
@@ -69,6 +99,10 @@ export default function ChatPage() {
       ]);
       if (data.isEmergency) {
         setEmergency({ number: data.emergencyNumber || EMERGENCY_BY_COUNTRY[country] || '112' });
+      }
+      if (data.reply && localStorage.getItem('najdda-tts-enabled') === 'true') {
+        const replyLang = user?.profile?.preferredLanguage || 'Arabic';
+        speak(data.reply, replyLang);
       }
     } catch (err) {
       setMessages((m) => [
@@ -218,11 +252,26 @@ export default function ChatPage() {
           <input
             id="chat-input"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => { stopSpeech(); setInput(e.target.value); }}
             placeholder={t('chat.inputPlaceholder')}
             disabled={sending}
             className="flex-1 rounded-full border-2 border-line-strong bg-canvas px-5 py-3 text-ink transition-colors placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none disabled:opacity-50"
           />
+          {isSupported && (
+            <button
+              type="button"
+              onClick={handleMicToggle}
+              disabled={sending}
+              className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-40 ${
+                isListening
+                  ? 'animate-pulse border-emergency bg-emergency text-on-emergency'
+                  : 'border-line-strong bg-surface text-ink hover:border-primary'
+              }`}
+              aria-label={isListening ? t('chat.mic.stop') : t('chat.mic.start')}
+            >
+              {isListening ? <MicOff size={20} aria-hidden="true" /> : <Mic size={20} aria-hidden="true" />}
+            </button>
+          )}
           <button
             type="submit"
             disabled={sending || !input.trim()}

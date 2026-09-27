@@ -183,6 +183,10 @@ export default {
   'settings.meds.confirmRemove': 'Remove {name} from your medical passport?',
   'settings.meds.empty': 'No medication recorded yet. Search above to add one — nurses see this list during triage.',
 
+  'settings.voice.heading': 'Voice & Accessibility',
+  'settings.voice.readAloud': 'Read responses aloud',
+  'settings.voice.readAloudHelp': 'Automatically read medical service replies using text-to-speech',
+  'settings.voice.audioDisclaimer': 'Audio is sent to a third party (Groq) for transcription. No recording is stored.',
   'settings.emergency.heading': 'Emergency Contacts',
   'settings.emergency.addContact': '+ Add Contact',
 
@@ -209,6 +213,9 @@ export default {
   'chat.emergencyTitle': 'Emergency detected',
   'chat.emergencyBody': 'Do not wait for a chat reply. Call now.',
   'chat.call': 'Call {number}',
+  'chat.mic.start': 'Start voice input',
+  'chat.mic.stop': 'Stop recording',
+  'chat.mic.unsupported': 'Speech recognition is not supported in this browser',
   'chat.inputLabel': 'Describe your symptoms',
   'chat.inputPlaceholder': 'Describe your symptoms…',
   'chat.send': 'Send',

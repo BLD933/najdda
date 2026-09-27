@@ -4,7 +4,7 @@ import { useAuth } from '../features/auth/context/AuthContext';
 import profileService from '../features/auth/services/profileService';
 import {
   ArrowLeft, Save, User, Phone, Droplets,
-  Activity, Loader2, CheckCircle2, AlertCircle
+  Activity, Loader2, CheckCircle2, AlertCircle, Volume2
 } from 'lucide-react';
 import ThemeToggle from '../features/theme/components/ThemeToggle';
 import LanguageSwitcher from '../features/i18n/LanguageSwitcher';
@@ -24,6 +24,7 @@ const SettingsPage = () => {
   const [medicationSearch, setMedicationSearch] = useState('');
   const [medicationResults, setMedicationResults] = useState([]);
   const [searchingMed, setSearchingMed] = useState(false);
+  const [readAloud, setReadAloud] = useState(() => localStorage.getItem('najdda-tts-enabled') === 'true');
 
   const [formData, setFormData] = useState({
     phoneNumber: '',
@@ -349,6 +350,31 @@ const SettingsPage = () => {
               </p>
             )}
           </div>
+        </section>
+
+        {/* SECTION: Voice & Accessibility */}
+        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+          <h2 className="flex items-center gap-2 text-lg font-bold"><Volume2 className="text-primary" size={20} aria-hidden="true" /> {t('settings.voice.heading')}</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-ink">{t('settings.voice.readAloud')}</p>
+              <p className="text-xs text-ink-muted">{t('settings.voice.readAloudHelp')}</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={readAloud}
+              onClick={() => {
+                const next = !readAloud;
+                setReadAloud(next);
+                localStorage.setItem('najdda-tts-enabled', next ? 'true' : 'false');
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${readAloud ? 'bg-primary' : 'bg-surface-3'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${readAloud ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+          <p className="text-xs text-ink-muted italic">{t('settings.voice.audioDisclaimer')}</p>
         </section>
 
         {/* SECTION: Emergency */}

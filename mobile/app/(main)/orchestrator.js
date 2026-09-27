@@ -34,9 +34,14 @@ import {
   FileText,
   Settings,
   Activity,
+  Mic,
+  MicOff,
 } from 'lucide-react-native';
 import apiClient from '../../src/api/apiClient';
 import conversationService from '../../src/features/chat/services/conversationService';
+import EmergencyModal from '../../src/features/chat/components/EmergencyModal';
+import { useVoiceMode } from '../../src/features/chat/hooks/useVoiceMode';
+import { useAuth } from '../../src/features/auth/context/AuthContext';
 
 const AGENT_META = {
   triage: { icon: Bot, color: '#004ac6', label: 'Triage' },
@@ -126,6 +131,17 @@ export default function OrchestratorScreen() {
   const [activeAgents, setActiveAgents] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [streamedText, setStreamedText] = useState('');
+  const [emergencyInfo, setEmergencyInfo] = useState(null);
+
+  const { user } = useAuth();
+  const preferredLang = user?.profile?.preferredLanguage || 'Arabic';
+  const { isRecording, isSpeaking, speak, stopSpeaking, toggleRecording } = useVoiceMode({
+    preferredLanguage: preferredLang,
+    onTranscribed: (text) => {
+      setInput(text);
+      setTimeout(() => sendMessage(text), 100);
+    },
+  });
 
   useEffect(() => {
     conversationService.getHistory('orchestrator').then((history) => {
@@ -187,6 +203,13 @@ export default function OrchestratorScreen() {
         emergencyNumber,
         options: responseData.options,
       } : m));
+
+      if (isEmergency) {
+        stopSpeaking();
+        setEmergencyInfo({ number: emergencyNumber });
+      } else if (replyText && user?.settings?.voiceEnabled) {
+        speak(replyText, preferredLang);
+      }
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || 'Connection error. Please try again.';
       setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, text: `Error: ${errMsg}` } : m));
@@ -361,12 +384,19 @@ export default function OrchestratorScreen() {
             <TextInput
               style={styles.input}
               value={input}
-              onChangeText={setInput}
+              onChangeText={(text) => { stopSpeaking(); setInput(text); }}
               placeholder="Describe your symptoms or health concern..."
               placeholderTextColor="rgba(67, 70, 85, 0.4)"
               multiline
               maxLength={500}
             />
+            <TouchableOpacity
+              style={[styles.micBtn, isRecording && styles.micBtnActive]}
+              onPress={toggleRecording}
+              disabled={loading}
+            >
+              {isRecording ? <MicOff size={18} color="#FFFFFF" /> : <Mic size={18} color="#FFFFFF" />}
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
               onPress={sendMessage}
@@ -399,6 +429,7 @@ export default function OrchestratorScreen() {
           <Text style={styles.navText}>Settings</Text>
         </TouchableOpacity>
       </View>
+      <EmergencyModal visible={Boolean(emergencyInfo)} emergencyNumber={emergencyInfo?.number} onClose={() => setEmergencyInfo(null)} />
     </SafeAreaView>
   );
 }
@@ -562,6 +593,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendBtnDisabled: { opacity: 0.4 },
+  micBtn: {
+    backgroundColor: '#7c3aed',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  micBtnActive: {
+    backgroundColor: '#dc2626',
+  },
   emergencyButton: {
     backgroundColor: '#ef4444',
     paddingVertical: 10,

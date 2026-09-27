@@ -13,7 +13,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "NAJDDA uses your location to find nearby hospitals and emergency services.",
         "NSCameraUsageDescription": "NAJDDA needs access to your camera to capture images of your symptoms for AI analysis.",
-        "NSPhotoLibraryUsageDescription": "NAJDDA needs access to your photos to upload images of your symptoms for AI analysis."
+        "NSPhotoLibraryUsageDescription": "NAJDDA needs access to your photos to upload images of your symptoms for AI analysis.",
+        "NSMicrophoneUsageDescription": "NAJDDA uses your microphone for voice consultation and speech-to-text."
       },
       "bundleIdentifier": "com.anonymous.najdda-mobile"
     },
@@ -47,7 +48,8 @@
           "cameraPermission": "NAJDDA needs access to your camera to capture images of your symptoms for AI analysis."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-audio"
     ],
     "scheme": "najdda"
   }

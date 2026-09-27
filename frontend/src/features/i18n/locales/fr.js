@@ -191,6 +191,10 @@ export default {
   'settings.meds.confirmRemove': 'Supprimer {name} de votre passeport médical ?',
   'settings.meds.empty': "Aucun traitement enregistré pour l'instant. Recherchez ci-dessus pour en ajouter un — les infirmières voient cette liste lors du triage.",
 
+  'settings.voice.heading': 'Voix et accessibilité',
+  'settings.voice.readAloud': 'Lire les réponses à voix haute',
+  'settings.voice.readAloudHelp': 'Lit automatiquement la réponse du service médical par synthèse vocale',
+  'settings.voice.audioDisclaimer': "L'audio est envoyé à un tiers (Groq) pour transcription. Aucun enregistrement n'est conservé.",
   'settings.emergency.heading': "Contacts d'urgence",
   'settings.emergency.addContact': '+ Ajouter un contact',
 
@@ -217,6 +221,9 @@ export default {
   'chat.emergencyTitle': 'Urgence détectée',
   'chat.emergencyBody': "N'attendez pas d'une réponse dans le chat. Appelez maintenant.",
   'chat.call': 'Appeler le {number}',
+  'chat.mic.start': 'Activer la saisie vocale',
+  'chat.mic.stop': "Arrêter l'enregistrement",
+  'chat.mic.unsupported': "La reconnaissance vocale n'est pas supportée par votre navigateur",
   'chat.inputLabel': 'Décrivez vos symptômes',
   'chat.inputPlaceholder': 'Décrivez vos symptômes…',
   'chat.send': 'Envoyer',
