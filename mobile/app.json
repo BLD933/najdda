@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "SHIFAA",
+    "slug": "shifaa-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "SHIFAA uses your location to find nearby hospitals and emergency services.",
+        "NSCameraUsageDescription": "SHIFAA needs access to your camera to capture images of your symptoms for AI analysis.",
+        "NSPhotoLibraryUsageDescription": "SHIFAA needs access to your photos to upload images of your symptoms for AI analysis."
+      },
+      "bundleIdentifier": "com.anonymous.shifaa-mobile"
+    },
+    "android": {
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-asset",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SHIFAA uses your location to find nearby hospitals and emergency services."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SHIFAA needs access to your photos to upload images of your symptoms for AI analysis.",
+          "cameraPermission": "SHIFAA needs access to your camera to capture images of your symptoms for AI analysis."
+        }
+      ],
+      "expo-notifications"
+    ],
+    "scheme": "shifaa"
+  }
+}

@@ -1,0 +1,222 @@
+{
+  "name": "Emergency Notification and Hospital Lookup",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emergency-alert",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "1d2d74d7-2b4c-4bef-bd04-e5e4817d5a01",
+      "name": "Emergency Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "a94e95f7-2871-4e7c-8d5e-890b4a80e49b"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "50e42f51-9c51-4df6-89f2-c3e730adf8da",
+              "leftValue": "={{ $json.body.isEmergency }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a31434ee-8c26-4c47-801b-18faa0c70e76",
+      "name": "Is Emergency",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "location",
+              "value": "={{ $node[\"Emergency Webhook\"].json.body.location.lat + ',' + $node[\"Emergency Webhook\"].json.body.location.lng }}"
+            },
+            {
+              "name": "rankby",
+              "value": "distance"
+            },
+            {
+              "name": "type",
+              "value": "hospital"
+            },
+            {
+              "name": "key",
+              "value": "={{ $env.GOOGLE_MAPS_API_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "d2e0737e-af70-43c1-88af-8d5a0cd78007",
+      "name": "Find Nearest Hospital",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const alert = $node[\"Emergency Webhook\"].json.body || {};\nconst mapsResponse = items[0].json || {};\nconst hospital = Array.isArray(mapsResponse.results) && mapsResponse.results.length > 0\n  ? mapsResponse.results[0]\n  : null;\n\nconst location = alert.location || {};\nconst profile = alert.medicalProfile || {};\nconst mapsLink = Number.isFinite(Number(location.lat)) && Number.isFinite(Number(location.lng))\n  ? `https://www.google.com/maps?q=${location.lat},${location.lng}`\n  : 'Location unavailable';\nconst hospitalName = hospital?.name || 'Nearest hospital could not be identified';\nconst hospitalAddress = hospital?.vicinity || hospital?.formatted_address || 'Address unavailable';\nconst allergies = Array.isArray(profile.allergies) ? profile.allergies.join(', ') : (profile.allergies || 'Not provided');\nconst conditions = Array.isArray(profile.conditions) ? profile.conditions.join(', ') : (profile.conditions || 'Not provided');\nconst bloodType = profile.bloodType || 'Not provided';\n\nconst whatsappMessage = [\n  'EMERGENCY ALERT',\n  '',\n  `Reason: ${alert.message || 'No user message was provided.'}`,\n  'The emergency detector marked this request as critical. The user may not be responding.',\n  '',\n  `Location: ${mapsLink}`,\n  `Nearest hospital: ${hospitalName}`,\n  `Hospital address: ${hospitalAddress}`,\n  '',\n  'Medical profile:',\n  `Allergies: ${allergies}`,\n  `Conditions: ${conditions}`,\n  `Blood type: ${bloodType}`,\n  '',\n  'Please contact local emergency services immediately if this is an active emergency.'\n].join('\\n');\n\nreturn [{\n  json: {\n    userId: alert.userId || null,\n    isEmergency: alert.isEmergency === true,\n    emergencyReason: alert.message || null,\n    location,\n    mapsLink,\n    nearestHospital: hospital ? { name: hospitalName, address: hospitalAddress, placeId: hospital.place_id || null } : null,\n    emergencyContact: alert.emergencyContact || {},\n    recipientPhone: alert.emergencyContact?.phone || null,\n    medicalProfile: { allergies, conditions, bloodType },\n    whatsappMessage\n  }\n}];"
+      },
+      "id": "5c1a85cc-4f69-4238-8edb-9b386471556a",
+      "name": "Build Emergency Message",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        940,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_BASE_URL + '/message/sendText/' + $env.EVOLUTION_INSTANCE }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { number: $json.recipientPhone, text: $json.whatsappMessage } }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "81d81537-8505-49ef-8d18-1e876873c6de",
+      "name": "Send WhatsApp Emergency Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1180,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const alert = $node[\"Build Emergency Message\"].json;\nconst whatsappResponse = items[0].json || {};\n\nreturn [{\n  json: {\n    event: 'emergency_whatsapp_alert',\n    status: 'prepared_for_logging',\n    userId: alert.userId,\n    isEmergency: alert.isEmergency,\n    emergencyReason: alert.emergencyReason,\n    recipientPhone: alert.recipientPhone,\n    nearestHospital: alert.nearestHospital,\n    mapsLink: alert.mapsLink,\n    whatsappResponse,\n    processedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "bd218263-faf7-4a8a-9297-18155ef40510",
+      "name": "Prepare Emergency Log",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1420,
+        200
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Emergency Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is Emergency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Emergency": {
+      "main": [
+        [
+          {
+            "node": "Find Nearest Hospital",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Find Nearest Hospital": {
+      "main": [
+        [
+          {
+            "node": "Build Emergency Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Emergency Message": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Emergency Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Emergency Alert": {
+      "main": [
+        [
+          {
+            "node": "Prepare Emergency Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9f0eb165-f7eb-4f03-94e2-87b71ed74473",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

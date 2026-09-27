@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+
+<html dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SHIFAA | AI Triage</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#737686",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "surface-container": "#eceef0",
+                        "on-error": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "on-background": "#191c1e",
+                        "tertiary-fixed-dim": "#d0bcff",
+                        "secondary": "#565e74",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "surface-bright": "#f7f9fb",
+                        "primary-container": "#2563eb",
+                        "primary": "#004ac6",
+                        "surface": "#f7f9fb",
+                        "on-tertiary-container": "#f6edff",
+                        "outline-variant": "#c3c6d7",
+                        "inverse-surface": "#2d3133",
+                        "surface-container-highest": "#e0e3e5",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "on-error-container": "#93000a",
+                        "surface-tint": "#0053db",
+                        "secondary-fixed": "#dae2fd",
+                        "on-primary-fixed": "#00174b",
+                        "inverse-on-surface": "#eff1f3",
+                        "on-secondary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#e0e3e5",
+                        "on-surface": "#191c1e",
+                        "on-primary": "#ffffff",
+                        "tertiary-container": "#7d4ce7",
+                        "on-tertiary-fixed-variant": "#5516be",
+                        "on-secondary-container": "#5c647a",
+                        "background": "#f7f9fb",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "surface-dim": "#d8dadc",
+                        "surface-container-high": "#e6e8ea",
+                        "on-tertiary-fixed": "#23005c",
+                        "on-secondary-fixed": "#131b2e",
+                        "secondary-container": "#dae2fd",
+                        "tertiary-fixed": "#e9ddff",
+                        "primary-fixed": "#dbe1ff",
+                        "inverse-primary": "#b4c5ff",
+                        "on-primary-container": "#eeefff",
+                        "tertiary": "#632ecd",
+                        "on-surface-variant": "#434655"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-margin": "20px",
+                        "stack-xl": "40px",
+                        "gutter": "16px",
+                        "stack-sm": "8px",
+                        "stack-md": "16px",
+                        "stack-lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "body-lg": ["Inter"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "data-display": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "label-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-xl": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "30px", "fontWeight": "700"}],
+                        "data-display": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "label-sm": ["13px", {"lineHeight": "18px", "letterSpacing": "0.02em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #f7f9fb;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-pill-shadow {
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+    </style>
+</head>
+<body class="text-on-background min-h-screen pb-32">
+<!-- Top AppBar (From JSON Guidance) -->
+<header class="w-full top-0 sticky z-40 bg-surface shadow-sm flex justify-between items-center px-container-margin py-stack-md">
+<div class="flex flex-col">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary font-bold">AI Triage</h1>
+<p class="font-body-md text-on-surface-variant -mt-1">Choose a consultation type</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative">
+<span class="material-symbols-outlined text-outline p-2 hover:bg-surface-container-low transition-colors rounded-full cursor-pointer">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-primary-fixed-dim overflow-hidden bg-surface-container-high shadow-sm">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AP1WRLvzZjSuqUQvvWPxrY4EG5nxfoo_WdbhvOJs8h5svz-68yKkJ3UX1tc5ewkoRzvHW2DakZe1MVKR4top2y5VI_cGyEoPWv5YvWWk8WlPG0IZXczbmwXJVRYFtwAjMJVv9kBwq8T3Gki_IB2Lp1TtXkYDsZwufbhBUhYx_tbdNNDSjswY0Z1Cr9iG52VXLqYflBP-PmHIlMAAyUE1VPe_yK1NDLWgiBaHSMDQvJNFA1Sry1Tz7vs8XZyFlxI"/>
+</div>
+</div>
+</header>
+<main class="px-container-margin mt-stack-lg">
+<!-- Section Label -->
+<div class="flex items-center gap-2 mb-stack-md">
+<h2 class="font-label-sm text-label-sm text-outline tracking-widest uppercase">Consultation Categories</h2>
+<div class="h-px flex-1 bg-outline-variant opacity-30"></div>
+</div>
+<!-- Category List -->
+<div class="space-y-stack-md">
+<!-- Category 1: General Triage -->
+<button class="w-full flex items-center p-4 bg-surface-container-lowest rounded-xl border border-surface-container shadow-sm hover:shadow-md active:scale-[0.98] transition-all group">
+<div class="w-12 h-12 flex items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+<span class="material-symbols-outlined text-[28px]">smart_toy</span>
+</div>
+<div class="ml-4 text-left flex-1">
+<h3 class="font-headline-md text-headline-md text-on-surface">General Triage</h3>
+<p class="font-body-md text-on-surface-variant text-sm">Symptom check and medical guidance</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">chevron_right</span>
+</button>
+<!-- Category 2: Femmes enceintes -->
+<button class="w-full flex items-center p-4 bg-surface-container-lowest rounded-xl border border-surface-container shadow-sm hover:shadow-md active:scale-[0.98] transition-all group">
+<div class="w-12 h-12 flex items-center justify-center rounded-lg bg-rose-100 text-rose-600 shrink-0">
+<span class="material-symbols-outlined text-[28px]">auto_awesome</span>
+</div>
+<div class="ml-4 text-left flex-1">
+<h3 class="font-headline-md text-headline-md text-on-surface">Femmes enceintes</h3>
+<p class="font-body-md text-on-surface-variant text-sm">Support dedicated to pregnancy care</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-rose-600 transition-colors">chevron_right</span>
+</button>
+<!-- Category 3: Allergies -->
+<button class="w-full flex items-center p-4 bg-surface-container-lowest rounded-xl border border-surface-container shadow-sm hover:shadow-md active:scale-[0.98] transition-all group">
+<div class="w-12 h-12 flex items-center justify-center rounded-lg bg-amber-100 text-amber-600 shrink-0">
+<span class="material-symbols-outlined text-[28px]">local_florist</span>
+</div>
+<div class="ml-4 text-left flex-1">
+<h3 class="font-headline-md text-headline-md text-on-surface">Allergies</h3>
+<p class="font-body-md text-on-surface-variant text-sm">Allergy assessment and safety advice</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-amber-600 transition-colors">chevron_right</span>
+</button>
+<!-- Category 4: Petits enfants -->
+<button class="w-full flex items-center p-4 bg-surface-container-lowest rounded-xl border border-surface-container shadow-sm hover:shadow-md active:scale-[0.98] transition-all group">
+<div class="w-12 h-12 flex items-center justify-center rounded-lg bg-cyan-100 text-cyan-600 shrink-0">
+<span class="material-symbols-outlined text-[28px]">child_care</span>
+</div>
+<div class="ml-4 text-left flex-1">
+<h3 class="font-headline-md text-headline-md text-on-surface">Petits enfants</h3>
+<p class="font-body-md text-on-surface-variant text-sm">Pediatric dosage and symptom guide</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-cyan-600 transition-colors">chevron_right</span>
+</button>
+<!-- Category 5: Médicaments -->
+<button class="w-full flex items-center p-4 bg-surface-container-lowest rounded-xl border border-surface-container shadow-sm hover:shadow-md active:scale-[0.98] transition-all group">
+<div class="w-12 h-12 flex items-center justify-center rounded-lg bg-purple-100 text-purple-600 shrink-0">
+<span class="material-symbols-outlined text-[28px]">pill</span>
+</div>
+<div class="ml-4 text-left flex-1">
+<h3 class="font-headline-md text-headline-md text-on-surface">Médicaments</h3>
+<p class="font-body-md text-on-surface-variant text-sm">Drug interaction verification</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-purple-600 transition-colors">chevron_right</span>
+</button>
+</div>
+<!-- Promotional AI Card -->
+<div class="mt-stack-xl relative overflow-hidden rounded-xl bg-primary-container p-6 text-on-primary-container">
+<!-- Subtle Mesh Pattern -->
+<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 24px 24px;"></div>
+<div class="relative z-10">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined">verified</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Certified Assistant</span>
+</div>
+<h4 class="font-headline-md text-headline-md mb-2">Need immediate help?</h4>
+<p class="font-body-md opacity-90 text-sm mb-4">Our specialized AI models are available 24/7 to provide clinical insights based on North African medical protocols.</p>
+<button class="bg-surface-container-lowest text-primary font-semibold py-2 px-6 rounded-full text-sm active:scale-95 transition-transform">
+                    Start Quick Assessment
+                </button>
+</div>
+<!-- Abstract background shape -->
+<div class="absolute -bottom-10 -right-10 w-40 h-40 bg-white/20 rounded-full blur-3xl"></div>
+</div>
+</main>
+<!-- BottomNavBar (From JSON Guidance) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 bg-surface-container-lowest shadow-[0_-4px_20px_rgba(0,74,198,0.15)] rounded-t-xl">
+<!-- Dashboard -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-4 py-1 hover:bg-surface-container-high transition-all active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-sm text-label-sm mt-1">Dashboard</span>
+</a>
+<!-- Triage (Active) -->
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-5 py-1 active-pill-shadow transition-all active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="medical_services" style="font-variation-settings: 'FILL' 1;">medical_services</span>
+<span class="font-label-sm text-label-sm mt-1">Triage</span>
+</a>
+<!-- Reports -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-4 py-1 hover:bg-surface-container-high transition-all active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-label-sm text-label-sm mt-1">Reports</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant px-4 py-1 hover:bg-surface-container-high transition-all active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm mt-1">Settings</span>
+</a>
+</nav>
+<script>
+        // Micro-interactions for category cards
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.classList.add('scale-[0.98]');
+            });
+            button.addEventListener('mouseup', () => {
+                button.classList.remove('scale-[0.98]');
+            });
+            button.addEventListener('mouseleave', () => {
+                button.classList.remove('scale-[0.98]');
+            });
+        });
+
+        // Simple visibility observer for entrance animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('opacity-100', 'translate-y-0');
+                    entry.target.classList.remove('opacity-0', 'translate-y-4');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('button.group').forEach((card, index) => {
+            card.classList.add('opacity-0', 'translate-y-4', 'transition-all', 'duration-500');
+            card.style.transitionDelay = `${index * 50}ms`;
+            observer.observe(card);
+        });
+    </script>
+</body></html>
