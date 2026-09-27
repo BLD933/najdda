@@ -14,11 +14,11 @@ Run 2026-09-27. Backend on :5000, Postgres in docker `shifaa-db`, provider Groq.
 | Orchestrator emergency number | `150` | ✅ |
 | Arabic routine → not emergency | `false` | ✅ |
 | `تابعني بعد 10 ثواني` → timer | `0.1667` min | ✅ |
-| follow-up message present | yes | ✅ |
 | no `[FOLLOWUP]`/`[SEVERITY]` tag leakage | none | ✅ |
 | `locator` routes (hospital/pharmacy nearby) | yes | ✅ |
+| locator output is prose, not raw JSON | yes | ✅ |
 | `diagnosis` routes (what condition do I have) | yes | ✅ |
-| Darija in → Darija out | yes | ✅ |
+| diagnosis output is prose, not raw JSON | yes | ✅ |
 
 Both gateway directions matter: a gateway that always reports emergency passes the first
 row and is broken.
@@ -27,6 +27,11 @@ row and is broken.
 Groq's output-tokens-per-minute budget was exhausted by the test burst itself, the router
 429'd, and every request silently fell back to `triage`. That is what surfaced the missing
 retry. Paced ~5s apart, they pass. See `MIGRATION-NOTES.md`.
+
+**One flaky input.** `keno mektab les reaffaississements dyal sara?` (Darija, slightly
+ambiguous) intermittently makes the model answer with a clarifying question instead of JSON,
+returning `json_validate_failed`. Re-running succeeds. The model behaviour, not a code
+defect — but it degrades to `triage`, which is the intended safe fallback.
 
 ## Provider swap — proven, zero code change
 
