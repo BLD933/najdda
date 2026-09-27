@@ -7,6 +7,7 @@ const diagnosisAgent = require('../../services/agents/DiagnosisAgent');
 const locatorAgent = require('../../services/agents/LocatorAgent');
 const reportAgent = require('../../services/agents/ReportAgent');
 const followupAgent = require('../../services/agents/FollowupAgent');
+const llmClient = require('../../lib/GeminiClient');
 
 async function triageNode(state) {
   const { messages, patientProfile, userMessage } = state;
@@ -215,7 +216,7 @@ async function locatorNode(state) {
     return {
       subAgentResponses: {
         locator: {
-          reply: result,
+          reply: humanizeAgentOutput(result),
           status: 'ok',
         },
       },
@@ -245,10 +246,13 @@ async function diagnosisNode(state) {
         })),
       { role: 'user', content: userMessage },
     ];
-    const reply = await diagnosisAgent.analyze(history, null, patientProfile);
+    // Pass a minimal triage-shaped object rather than null: DiagnosisAgent reads
+    // `triageData` and will otherwise narrate "triage data is null" to the patient.
+    const triageData = { severity: 'UNASSESSED', reply: userMessage };
+    const reply = await diagnosisAgent.analyze(history, triageData, patientProfile);
     return {
       subAgentResponses: {
-        diagnosis: { reply, status: 'ok' },
+        diagnosis: { reply: humanizeAgentOutput(reply), status: 'ok' },
       },
     };
   } catch (error) {
@@ -273,7 +277,7 @@ async function reportNode(state) {
     const reply = await reportAgent.generate(history, null, null, null, patientProfile);
     return {
       subAgentResponses: {
-        report: { reply, status: 'ok' },
+        report: { reply: humanizeAgentOutput(reply), status: 'ok' },
       },
     };
   } catch (error) {
@@ -293,7 +297,7 @@ async function followupNode(state) {
     const reply = await followupAgent.checkIn(patientProfile, lastReport, userMessage);
     return {
       subAgentResponses: {
-        followup: { reply, status: 'ok' },
+        followup: { reply: humanizeAgentOutput(reply), status: 'ok' },
       },
     };
   } catch (error) {
@@ -304,6 +308,30 @@ async function followupNode(state) {
       errors: [`Follow-up agent failed: ${error.message}`],
     };
   }
+}
+
+/**
+ * These agents answer with a JSON document rather than prose. The synthesis
+ * node puts an agent's `reply` straight in front of the patient, so unwrap the
+ * useful field here instead of showing raw JSON in the chat.
+ */
+function humanizeAgentOutput(raw) {
+  if (typeof raw !== 'string') return String(raw || '');
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('{')) return trimmed;
+
+  const parsed = llmClient.parseJSON(trimmed, null);
+  if (!parsed) return trimmed;
+
+  const text =
+    parsed.reply || parsed.guidance || parsed.message || parsed.checkin ||
+    parsed.assessment || parsed.reason || parsed.notes || parsed.summary;
+  if (typeof text === 'string' && text.trim()) return text.trim();
+
+  return Object.values(parsed)
+    .filter(v => typeof v === 'string' && v.trim())
+    .join(' ')
+    .trim() || trimmed;
 }
 
 const AGENT_MAP = {

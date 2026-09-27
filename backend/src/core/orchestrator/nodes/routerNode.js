@@ -38,9 +38,10 @@ Respond ONLY in a single JSON object with EXACTLY these keys: "reasoning" (strin
           { role: 'user', content: userMessage },
         ],
         {
-          // Small schema: reasoning + agents + primaryDomain. A high cap here
-          // burns the provider's output-token budget on every request.
-          maxTokens: 250,
+          // Small schema (reasoning + agents + primaryDomain), but the model
+          // needs headroom to finish the JSON document — too tight a cap makes
+          // it emit `json_validate_failed` mid-object.
+          maxTokens: 500,
           temperature: 0.0,
           jsonSchema: true,
         }

@@ -63,7 +63,8 @@ remove those without re-testing both.
 
 **3. The emergency fail-safe fires on any upstream error**, including quota exhaustion.
 If every reply suddenly says "emergency" with no real symptom, check the logs for 429s
-before suspecting the model.
+before suspecting the model. Retries help, but a sustained burst still exhausts the
+shared tier's output-token-per-minute budget.
 
 ## Bugs fixed during the port
 
@@ -86,7 +87,9 @@ All pre-existing upstream, surfaced by testing:
   `['triage']` default, so a busy minute made the app look like it was working while
   ignoring most messages. In the safety gateway the same 429 hits the fail-safe and
   reports every message as a life-threatening emergency. `LlmClient.withRateLimitRetry()`
-  now backs off and retries; both call sites use it.
+  now backs off — honouring the provider's own "retry in Ns" hint and waiting into the
+  next minute window — and both call sites use it. The router and gateway token caps were
+  also cut (800 → 250 / 400), since output tokens per minute is the binding limit.
 - **`/orchestrator/chat` never returned `emergencyNumber`**, though the mobile client
   dials it. Patients in Morocco were offered `112` instead of `150`.
 

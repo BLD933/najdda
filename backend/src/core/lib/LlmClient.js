@@ -233,6 +233,9 @@ class LlmClient {
       } catch (err) {
         lastError = err;
         const rateLimited = /\b429\b|rate.?limit|too many requests|quota/i.test(err.message);
+        // A truncated JSON document: the cap was too small for the document.
+        // Retrying at the same size fails identically, so surface it as-is and
+        // let the caller raise maxTokens rather than burning attempts.
         if (!rateLimited || i === attempts - 1) throw err;
 
         // Honour a Retry-After hint in the message when the provider gives one.
