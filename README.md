@@ -4,6 +4,10 @@
 
 See **[NAjdda-README.md](./NAjdda-README.md)** for full documentation.
 
+## Live Deployment
+
+**Web App:** [http://51.170.138.137](http://51.170.138.137)
+
 ## Quick Start
 
 ```bash
