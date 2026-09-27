@@ -24,7 +24,7 @@ export default {
 
   // ── Auth: login ───────────────────────────────────────────────────────────
   'login.title': 'Welcome Back',
-  'login.subtitle': 'Sign in to your SHIFAA account',
+  'login.subtitle': 'Sign in to your NAJDDA account',
   'login.email': 'Email Address',
   'login.password': 'Password',
   'login.submitting': 'Signing in…',
@@ -36,7 +36,7 @@ export default {
 
   // ── Auth: register ────────────────────────────────────────────────────────
   'register.title': 'Create Account',
-  'register.subtitle': 'Join SHIFAA and start your health journey',
+  'register.subtitle': 'Join NAJDDA and start your health journey',
   'register.fullName': 'Full Name',
   'register.fullNamePlaceholder': 'John Doe',
   'register.email': 'Email Address',
@@ -52,7 +52,7 @@ export default {
   'nav.systemLive': 'System Live',
   'nav.passport': 'Passport',
   'nav.exit': 'Exit',
-  'brand.name': 'SHIFAA',
+  'brand.name': 'NAJDDA',
 
   'dashboard.hero.status': 'Medical Status: Stable',
   'dashboard.hero.greeting': 'Salam, {name}.',

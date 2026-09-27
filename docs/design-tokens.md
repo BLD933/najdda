@@ -344,7 +344,7 @@ surfaces ne portent pas `ink-subtle`.
 
 - Mécanique : classe `.dark` sur `<html>` via `@custom-variant dark (&:where(.dark, .dark *))`,
   pas seulement une media query — c'est ce qui permet le basculement manuel.
-- Persistance : `localStorage['shifaa-theme']` ∈ `light` | `dark` | `system`.
+- Persistance : `localStorage['najdda-theme']` ∈ `light` | `dark` | `system`.
 - **Premier paint** : script inline dans `frontend/index.html` **avant** React (ligne 14-16), sinon
   flash blanc en dark.
 - `color-scheme: light dark` sur `:root`/`.dark` pour que scrollbars et UI natives suivent.

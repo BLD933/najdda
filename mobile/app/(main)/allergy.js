@@ -95,7 +95,7 @@ export default function AllergyChatScreen() {
       });
 
       if (result.requires_followup && result.followup_message) {
-        await scheduleLocalFollowup('allergy', 'Suivi allergie SHIFAA', result.followup_message, text, result.followup_time_minutes);
+        await scheduleLocalFollowup('allergy', 'Suivi allergie NAJDDA', result.followup_message, text, result.followup_time_minutes);
       }
 
       setLastStatus({

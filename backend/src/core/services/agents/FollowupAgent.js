@@ -1,6 +1,6 @@
 const llmClient = require('../../lib/GeminiClient');
 
-const SYSTEM_PROMPT = `You are the Follow-up Agent at SHIFAA digital hospital. You monitor patients after their consultation.
+const SYSTEM_PROMPT = `You are the Follow-up Agent at NAJDDA digital hospital. You monitor patients after their consultation.
 
 
 ## Language (mandatory)

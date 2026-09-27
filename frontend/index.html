@@ -4,20 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="SHIFAA - Votre assistant medical multIAgent. Triez vos symptomes, accedez a votre dossier medical, et calling d'urgence en un geste." />
+    <meta name="description" content="NAJDDA - Votre assistant medical multIAgent. Triez vos symptomes, accedez a votre dossier medical, et calling d'urgence en un geste." />
     <meta name="theme-color" content="#0f172a" />
-    <title>SHIFAA · Assistant medical</title>
+    <title>NAJDDA · Assistant medical</title>
     <script>
       // Applied before React paints, otherwise a dark-mode user gets a white flash.
       (function () {
         try {
-          var t = localStorage.getItem('shifaa-theme') || 'system';
+          var t = localStorage.getItem('najdda-theme') || 'system';
           var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           document.documentElement.classList.toggle('dark', dark);
           // Same reason: `lang` must be right on the first frame or assistive
           // tech starts reading French with an English voice and has to be
           // re-tasked mid-sentence. Keep DEFAULT_LANG in sync with fr.js.
-          var l = localStorage.getItem('shifaa-lang');
+          var l = localStorage.getItem('najdda-lang');
           document.documentElement.lang = (l === 'en' || l === 'fr') ? l : 'fr';
         } catch (e) {}
       })();

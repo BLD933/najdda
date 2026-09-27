@@ -2,7 +2,7 @@ const llmClient = require('../lib/GeminiClient');
 
 class VisionAnalyzerService {
   async analyze(imageBase64, textMessage = "Que voyez-vous sur cette image concernant ma santé ?", profile = {}) {
-    const prompt = `Vous êtes un expert médical de l'application SHIFAA.
+    const prompt = `Vous êtes un expert médical de l'application NAJDDA.
 Le patient (Sexe: ${profile.gender || 'non précisé'}, Âge: ${profile.age || 'non précisé'}) a envoyé une image pour analyse.
 Message du patient: "${textMessage}"
 

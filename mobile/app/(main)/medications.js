@@ -81,7 +81,7 @@ export default function MedicationsChatScreen() {
       const result = await checkInteractions(text, chatHistory, medsArray, base64Image);
 
       if (result.requires_followup && result.followup_message) {
-        await scheduleLocalFollowup('medications', 'Suivi médicaments SHIFAA', result.followup_message, text, result.followup_time_minutes);
+        await scheduleLocalFollowup('medications', 'Suivi médicaments NAJDDA', result.followup_message, text, result.followup_time_minutes);
       }
 
       setLastStatus({

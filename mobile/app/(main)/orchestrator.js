@@ -118,7 +118,7 @@ export default function OrchestratorScreen() {
     {
       id: '0',
       role: 'assistant',
-      text: 'Salam! 👋 I am the SHIFAA Orchestrator.\n\nDescribe your health concern and I will activate the right medical specialists to help you. I can handle symptoms, medications, pregnancy, children, allergies, and more.',
+      text: 'Salam! 👋 I am the NAJDDA Orchestrator.\n\nDescribe your health concern and I will activate the right medical specialists to help you. I can handle symptoms, medications, pregnancy, children, allergies, and more.',
     },
   ]);
   const [input, setInput] = useState('');
@@ -204,7 +204,7 @@ export default function OrchestratorScreen() {
     setMessages([{
       id: '0',
       role: 'assistant',
-      text: 'Salam! 👋 I am the SHIFAA Orchestrator.\n\nDescribe your health concern and I will activate the right medical specialists to help you.',
+      text: 'Salam! 👋 I am the NAJDDA Orchestrator.\n\nDescribe your health concern and I will activate the right medical specialists to help you.',
     }]);
     setActiveAgents([]);
   };

@@ -75,12 +75,12 @@ export default function LoginScreen() {
             <View style={styles.logoContainer}>
               <View style={styles.logoGlow} />
               <Image 
-                alt="SHIFAA Logo" 
+                alt="NAJDDA Logo" 
                 style={styles.logo} 
                 source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAwuhOalyEA3vPAcWJ-kpvTy4XDXkErsXcVKbdPCEn915jV4MsPNRUNO_SOVh0un596iMGMUKuJ19pUA4RSYr_70VfcKxr12aIybgQLZufvoYei_LCI6Qz_vGdnd7stBkjnLdbKJlg5Jur0Ot4whELV5e8vTcWgZk5KNawL1HCU5OTG1T8oBomQMyPax3YrXYQ0I571cTIQtxydktzifKG13MyvVIE96bmbFB42QB25CX-2btKs61z8cM6-GXZVQU5cK8bZV-7fHQ' }}
               />
             </View>
-            <Text style={styles.title}>Welcome to SHIFAA</Text>
+            <Text style={styles.title}>Welcome to NAJDDA</Text>
             <Text style={styles.subtitle}>Your 24/7 AI Health Guardian</Text>
           </View>
 

@@ -10,8 +10,8 @@ async function openPicker(source) {
     Alert.alert(
       'Permission requise',
       source === 'camera'
-        ? 'SHIFAA a besoin de la permission pour utiliser l’appareil photo.'
-        : 'SHIFAA a besoin de la permission pour accéder à vos photos.'
+        ? 'NAJDDA a besoin de la permission pour utiliser l’appareil photo.'
+        : 'NAJDDA a besoin de la permission pour accéder à vos photos.'
     );
     return null;
   }

@@ -44,7 +44,7 @@ class OpenFoodFactsClient {
 
       const url = `${this.baseUrl}?${params.toString()}`;
       const response = await fetch(url, {
-        headers: { 'User-Agent': 'SHIFAA-App/1.0 (pregnancy-safety-checker)' },
+        headers: { 'User-Agent': 'NAJDDA-App/1.0 (pregnancy-safety-checker)' },
       });
 
       if (!response.ok) {

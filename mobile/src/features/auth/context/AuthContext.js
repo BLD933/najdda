@@ -11,13 +11,13 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = await SecureStore.getItemAsync('shifaa_token');
+      const token = await SecureStore.getItemAsync('najdda_token');
       if (token) {
         try {
           const { user } = await authService.getMe();
           setUser(user);
         } catch (err) {
-          await SecureStore.deleteItemAsync('shifaa_token');
+          await SecureStore.deleteItemAsync('najdda_token');
           setUser(null);
         }
       }
@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { user, token } = await authService.login(credentials);
-      await SecureStore.setItemAsync('shifaa_token', token);
+      await SecureStore.setItemAsync('najdda_token', token);
       setUser(user);
       return user;
     } catch (err) {
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { user, token } = await authService.register(userData);
-      await SecureStore.setItemAsync('shifaa_token', token);
+      await SecureStore.setItemAsync('najdda_token', token);
       setUser(user);
       return user;
     } catch (err) {
@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync('shifaa_token');
+    await SecureStore.deleteItemAsync('najdda_token');
     setUser(null);
   };
 

@@ -93,7 +93,7 @@ async function synthesisNode(state = {}) {
     };
   }
 
-  const prompt = `System: You are SHIFAA Synthesis Agent. Write a friendly 2-sentence response directly to the patient in the exact language they used. Do NOT list rules, do NOT write headings or numbers.
+  const prompt = `System: You are NAJDDA Synthesis Agent. Write a friendly 2-sentence response directly to the patient in the exact language they used. Do NOT list rules, do NOT write headings or numbers.
 
 Patient context: ${compactContext}
 Specialist Findings: ${agentsSummary}

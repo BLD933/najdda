@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const ACTIVE_CHECKIN_KEY = 'shifaa_active_checkin';
+const ACTIVE_CHECKIN_KEY = 'najdda_active_checkin';
 const RESPONSE_WINDOW_MINUTES = 120; // 2 hours — if no response, emergency triggers
 
 /**
@@ -41,7 +41,7 @@ export async function scheduleLocalFollowup(chatType, title, message, context = 
   // Notification A: The health check-in
   const checkInNotifId = await Notifications.scheduleNotificationAsync({
     content: {
-      title: title || '🩺 SHIFAA Health Check-In',
+      title: title || '🩺 NAJDDA Health Check-In',
       body: message || 'How are you feeling?',
       sound: true,
       data: { type: 'follow_up', checkInId, context, chatType },
@@ -56,7 +56,7 @@ export async function scheduleLocalFollowup(chatType, title, message, context = 
   // Notification B: Emergency fallback (2h after check-in notification fires)
   const emergencyNotifId = await Notifications.scheduleNotificationAsync({
     content: {
-      title: '🚨 SHIFAA — No Response',
+      title: '🚨 NAJDDA — No Response',
       body: 'We noticed you did not respond to our check-in. Your emergency contact will be alerted.',
       sound: true,
       data: { type: 'emergency_fallback', checkInId, context, chatType },
@@ -79,7 +79,7 @@ export async function scheduleLocalFollowup(chatType, title, message, context = 
 }
 
 export async function scheduleCheckIn(followupMinutes, message, context = '') {
-  return scheduleLocalFollowup('triage', '🩺 SHIFAA Health Check-In', message, context, followupMinutes);
+  return scheduleLocalFollowup('triage', '🩺 NAJDDA Health Check-In', message, context, followupMinutes);
 }
 
 /**
@@ -111,7 +111,7 @@ export async function triggerEmergencyAutomation(reason, context = '') {
   console.warn(`[Emergency] Triggered! Reason: ${reason}. Context: "${context}"`);
 
   // TODO: Replace with real n8n webhook URL when ready
-  const N8N_WEBHOOK_URL = null; // e.g. 'https://your-n8n.com/webhook/shifaa-emergency'
+  const N8N_WEBHOOK_URL = null; // e.g. 'https://your-n8n.com/webhook/najdda-emergency'
 
   if (!N8N_WEBHOOK_URL) {
     console.warn('[Emergency] No webhook URL configured yet. Skipping network call.');

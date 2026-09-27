@@ -19,7 +19,7 @@ const SEVERE_SYMPTOM_PATTERNS = [
   /contractions.*(before|avant).*37|premature.*labor|travail.*prématuré/i,
 ];
 
-const SYSTEM_PROMPT = `You are the SHIFAA Pregnancy Safety Assistant — a cautious medical guidance tool for pregnant patients.
+const SYSTEM_PROMPT = `You are the NAJDDA Pregnancy Safety Assistant — a cautious medical guidance tool for pregnant patients.
 
 You can help with: symptoms during pregnancy, medication safety, FOOD & BEVERAGE safety, cosmetics, and trimester-specific advice.
 

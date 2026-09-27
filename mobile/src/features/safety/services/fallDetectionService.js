@@ -9,7 +9,7 @@ const COOLDOWN_MS       = 8000;  // 8s between detections
 const COUNTDOWN_SECONDS = 30;
 const SENSOR_INTERVAL_MS = 50;
 
-const FALL_EVENT_KEY = 'shifaa_fall_event';
+const FALL_EVENT_KEY = 'najdda_fall_event';
 
 let _subscription  = null;
 let _isRunning     = false;
@@ -52,7 +52,7 @@ async function onFallConfirmed() {
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'SHIFAA: Are you okay?',
+        title: 'NAJDDA: Are you okay?',
         body: 'A possible fall was detected. Respond within 30 seconds.',
         sound: true,
         categoryIdentifier: 'fall_check',
@@ -63,7 +63,7 @@ async function onFallConfirmed() {
 
     const emergencyNotifId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'SHIFAA Emergency Alert',
+        title: 'NAJDDA Emergency Alert',
         body: 'No response after a possible fall. Alerting emergency contacts.',
         sound: true,
         data: { type: 'fall_emergency', fallId },

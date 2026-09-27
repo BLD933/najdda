@@ -1,8 +1,8 @@
-# SHIFAA - Project Context
+# NAJDDA - Project Context
 
 ## Project Name
 
-**SHIFAA (شفاء)**
+**NAJDDA**
 
 **Tagline:**
 > *The AI Hospital That Fits in Your Pocket.*
@@ -11,9 +11,9 @@
 
 # Vision
 
-SHIFAA is an intelligent healthcare platform that simulates how a real hospital works using a team of specialized AI agents.
+NAJDDA is an intelligent healthcare platform that simulates how a real hospital works using a team of specialized AI agents.
 
-Instead of relying on a single chatbot, SHIFAA is built around multiple autonomous agents, each responsible for a specific medical task. A central **Orchestrator Agent** coordinates these agents, deciding which ones should be activated based on the patient's needs.
+Instead of relying on a single chatbot, NAJDDA is built around multiple autonomous agents, each responsible for a specific medical task. A central **Orchestrator Agent** coordinates these agents, deciding which ones should be activated based on the patient's needs.
 
 The goal is not to replace doctors but to help patients receive faster guidance, better preparation before consultations, safer medication recommendations, and continuous follow-up, especially in regions where healthcare access is limited.
 
@@ -34,13 +34,13 @@ Many patients, particularly in Morocco and other developing countries, face seve
 
 Most existing AI healthcare applications are simply chatbots that answer questions. They lack collaboration, patient memory, emergency awareness, and long-term monitoring.
 
-SHIFAA addresses these limitations by creating a collaborative ecosystem of AI agents.
+NAJDDA addresses these limitations by creating a collaborative ecosystem of AI agents.
 
 ---
 
 # Core Idea
 
-Think of SHIFAA as a digital hospital.
+Think of NAJDDA as a digital hospital.
 
 A patient does not interact with multiple AI assistants individually.
 
@@ -48,7 +48,7 @@ Instead, the patient communicates with a single system.
 
 Behind the scenes, an Orchestrator decides which specialized AI agents should work together to solve the patient's problem.
 
-Just like a hospital has nurses, doctors, pharmacists, and emergency staff, SHIFAA has specialized AI agents with clearly defined responsibilities.
+Just like a hospital has nurses, doctors, pharmacists, and emergency staff, NAJDDA has specialized AI agents with clearly defined responsibilities.
 
 ---
 
@@ -56,7 +56,7 @@ Just like a hospital has nurses, doctors, pharmacists, and emergency staff, SHIF
 
 Every AI agent should have **one responsibility only**.
 
-Rather than building one enormous prompt that attempts to solve every healthcare problem, SHIFAA distributes responsibilities among specialized agents.
+Rather than building one enormous prompt that attempts to solve every healthcare problem, NAJDDA distributes responsibilities among specialized agents.
 
 This makes the system:
 
@@ -94,7 +94,7 @@ Agents should never repeatedly ask for information they already know.
 
 ## Orchestrator Agent
 
-The Orchestrator is the brain of SHIFAA.
+The Orchestrator is the brain of NAJDDA.
 
 It never diagnoses diseases.
 
@@ -211,7 +211,7 @@ This creates a continuous healthcare relationship instead of isolated conversati
 
 # Emergency Mode
 
-One of SHIFAA's most important features is its Emergency Mode.
+One of NAJDDA's most important features is its Emergency Mode.
 
 If the Triage Agent detects life-threatening symptoms, the normal consultation immediately stops.
 
@@ -260,7 +260,7 @@ Because all agents share the same context, the patient never needs to repeat inf
 
 Healthcare should be accessible in the language patients naturally speak.
 
-SHIFAA supports:
+NAJDDA supports:
 
 - Arabic.
 - Moroccan Darija.
@@ -310,7 +310,7 @@ Future consultations become faster and more personalized because agents already 
 
 # Long-Term Vision
 
-SHIFAA aims to evolve into a complete AI healthcare ecosystem.
+NAJDDA aims to evolve into a complete AI healthcare ecosystem.
 
 Potential future capabilities include:
 
@@ -341,7 +341,7 @@ Potential future capabilities include:
 
 # Project Philosophy
 
-SHIFAA is not a chatbot.
+NAJDDA is not a chatbot.
 
 It is a collaborative AI healthcare platform where specialized agents work together like a real hospital team.
 

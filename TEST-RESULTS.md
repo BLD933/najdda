@@ -103,7 +103,7 @@ adb shell am start -a android.intent.action.VIEW -d "exp://127.0.0.1:8081" host.
 activate a medical specialist and answered in the patient's language instead of falling
 through to a generic English template:
 
-> Salam! 👋 I am the SHIFAA Orchestrator.
+> Salam! 👋 I am the NAJDDA Orchestrator.
 > مرحباً بك، كيف حالك اليوم؟  _(tagged `Triage`)_
 
 Both rows are in `chat_messages` (11:02:21 user, 11:02:22 assistant), so the exchange

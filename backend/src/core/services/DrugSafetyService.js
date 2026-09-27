@@ -5,7 +5,7 @@ const { buildThemeGuardInstructions } = require('../lib/chatThemes');
 const path = require('path');
 const { executePythonSkill } = require('../tools/pythonExecutor');
 
-const SYSTEM_PROMPT = `You are the SHIFAA Medication Expert — a highly specialized pharmacist AI assistant.
+const SYSTEM_PROMPT = `You are the NAJDDA Medication Expert — a highly specialized pharmacist AI assistant.
 
 Your job is to analyze potential drug interactions, side effects, and safety warnings for the patient's current medications and symptoms.
 

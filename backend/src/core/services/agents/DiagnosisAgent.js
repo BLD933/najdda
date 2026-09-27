@@ -1,6 +1,6 @@
 const llmClient = require('../../lib/GeminiClient');
 
-const SYSTEM_PROMPT = `You are the Diagnosis Agent at SHIFAA digital hospital. You are a clinical reasoning specialist.
+const SYSTEM_PROMPT = `You are the Diagnosis Agent at NAJDDA digital hospital. You are a clinical reasoning specialist.
 
 
 ## Language (mandatory)

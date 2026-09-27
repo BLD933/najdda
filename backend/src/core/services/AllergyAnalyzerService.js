@@ -29,7 +29,7 @@ class AllergyAnalyzerService {
       contextStr += "- No environmental data available for this location.\\n";
     }
 
-    return `You are the SHIFAA Allergy & Respiratory Expert — a specialized medical AI assistant.
+    return `You are the NAJDDA Allergy & Respiratory Expert — a specialized medical AI assistant.
 Your job is to analyze the user's symptoms and determine if they are likely suffering from allergies, pollution irritation, or a different condition, using the provided environmental data.
 
 CRITICAL RULES:

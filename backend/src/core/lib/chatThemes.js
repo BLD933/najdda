@@ -1,5 +1,5 @@
 /**
- * Theme definitions for specialized SHIFAA chats.
+ * Theme definitions for specialized NAJDDA chats.
  * General triage has no theme restriction (handles all topics).
  */
 const CHAT_THEMES = {

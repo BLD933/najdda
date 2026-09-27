@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-const STORAGE_KEY = 'shifaa-theme';
+const STORAGE_KEY = 'najdda-theme';
 const ThemeContext = createContext();
 
 const systemDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches;

@@ -89,7 +89,7 @@ export default function ChildrenChatScreen() {
       });
 
       if (result.requires_followup && result.followup_message) {
-        await scheduleLocalFollowup('children', 'Suivi pédiatrique SHIFAA', result.followup_message, text, result.followup_time_minutes);
+        await scheduleLocalFollowup('children', 'Suivi pédiatrique NAJDDA', result.followup_message, text, result.followup_time_minutes);
       }
 
       setLastStatus({

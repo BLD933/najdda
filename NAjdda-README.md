@@ -27,7 +27,7 @@ Limited access to doctors, long waits, no follow-up, chronic disease burden, dru
 
 Classic health chatbots = single prompt, no memory, no emergency awareness, no collaboration.
 
-SHIFAA = digital hospital: ONE assistant for patient, MULTIPLE experts behind, CONTINUOUS care.
+NAJDDA = digital hospital: ONE assistant for patient, MULTIPLE experts behind, CONTINUOUS care.
 Full vision: `docs/context.md`
 
 ## ✨ Features — Full List
@@ -172,7 +172,7 @@ GET /api/conversations
 
 ## ⚠️ Medical Disclaimer
 
-SHIFAA assists, never replaces doctors. No definitive diagnosis. Emergency overrides all. In case of doubt, call 150/112 immediately.
+NAJDDA assists, never replaces doctors. No definitive diagnosis. Emergency overrides all. In case of doubt, call 150/112 immediately.
 
 ## 🗺️ Roadmap
 

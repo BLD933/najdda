@@ -156,7 +156,7 @@ export default function EmergencyScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <ShieldAlert size={20} color="#ffffff" fill="#ffffff" />
-          <Text style={styles.brandText}>SHIFAA</Text>
+          <Text style={styles.brandText}>NAJDDA</Text>
         </View>
         <View style={styles.activeBadge}>
           <Animated.View style={[styles.pulseDot, { opacity: blinkAnim }]} />

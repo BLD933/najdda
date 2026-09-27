@@ -10,13 +10,13 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('shifaa_token');
+      const token = localStorage.getItem('najdda_token');
       if (token) {
         try {
           const { user } = await authService.getMe();
           setUser(user);
         } catch (err) {
-          localStorage.removeItem('shifaa_token');
+          localStorage.removeItem('najdda_token');
           setUser(null);
         }
       }
@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { user, token } = await authService.login(credentials);
-      localStorage.setItem('shifaa_token', token);
+      localStorage.setItem('najdda_token', token);
       setUser(user);
       return user;
     } catch (err) {
@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { user, token } = await authService.register(userData);
-      localStorage.setItem('shifaa_token', token);
+      localStorage.setItem('najdda_token', token);
       setUser(user);
       return user;
     } catch (err) {
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('shifaa_token');
+    localStorage.removeItem('najdda_token');
     setUser(null);
   };
 

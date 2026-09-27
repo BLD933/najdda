@@ -84,7 +84,7 @@ export default function PregnancyScreen() {
     {
       id: '0',
       role: 'assistant',
-      text: "Bonjour. Je suis votre assistante SHIFAA. Comment puis-je vous aider aujourd'hui ? Vous pouvez me poser des questions sur vos symptômes, l'alimentation ou vérifier un médicament.",
+      text: "Bonjour. Je suis votre assistante NAJDDA. Comment puis-je vous aider aujourd'hui ? Vous pouvez me poser des questions sur vos symptômes, l'alimentation ou vérifier un médicament.",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -150,7 +150,7 @@ export default function PregnancyScreen() {
       });
 
       if (result.requires_followup && result.followup_message) {
-        await scheduleLocalFollowup('pregnancy', 'Suivi grossesse SHIFAA', result.followup_message, text, result.followup_time_minutes);
+        await scheduleLocalFollowup('pregnancy', 'Suivi grossesse NAJDDA', result.followup_message, text, result.followup_time_minutes);
       }
 
       setLastStatus(result.status);
@@ -186,7 +186,7 @@ export default function PregnancyScreen() {
       {
         id: '0',
         role: 'assistant',
-        text: "Bonjour. Je suis votre assistante SHIFAA. Comment puis-je vous aider aujourd'hui ? Vous pouvez me poser des questions sur vos symptômes, l'alimentation ou vérifier un médicament.",
+        text: "Bonjour. Je suis votre assistante NAJDDA. Comment puis-je vous aider aujourd'hui ? Vous pouvez me poser des questions sur vos symptômes, l'alimentation ou vérifier un médicament.",
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
     ]);

@@ -17,7 +17,7 @@ import {
 } from '../../src/features/safety/services/fallDetectionService';
 import { triggerEmergencyAutomation } from '../../src/features/chat/services/localFollowupService';
 
-const ACTIVE_KEY = 'shifaa_fall_protection_active';
+const ACTIVE_KEY = 'najdda_fall_protection_active';
 
 export default function FallDetectionScreen() {
   const router  = useRouter();

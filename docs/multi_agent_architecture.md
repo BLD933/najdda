@@ -1,4 +1,4 @@
-# SHIFAA: Multi-Agent Medical Orchestrator Architecture
+# NAJDDA: Multi-Agent Medical Orchestrator Architecture
 
 If the ultimate goal is to build a system where an **Orchestrator** delegates to specialized **Sub-Agents** to handle "all the medical things," you are moving from a standard chatbot to a true **Agentic AI System**. 
 
@@ -10,7 +10,7 @@ Right now, your user has to manually select "Pregnancy" or "Triage" screens. In 
 
 ```mermaid
 graph TD
-    User([User Request]) --> O[SHIFAA Orchestrator Agent]
+    User([User Request]) --> O[NAJDDA Orchestrator Agent]
     
     O -->|Pediatric concern| A1[Pediatric Sub-Agent]
     O -->|Medication check| A2[Pharmacology Sub-Agent]

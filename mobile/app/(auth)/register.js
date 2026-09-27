@@ -66,13 +66,13 @@ export default function RegisterScreen() {
             <View style={styles.logoContainer}>
               <View style={styles.logoGlow} />
               <Image 
-                alt="SHIFAA Logo" 
+                alt="NAJDDA Logo" 
                 style={styles.logo} 
                 source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAwuhOalyEA3vPAcWJ-kpvTy4XDXkErsXcVKbdPCEn915jV4MsPNRUNO_SOVh0un596iMGMUKuJ19pUA4RSYr_70VfcKxr12aIybgQLZufvoYei_LCI6Qz_vGdnd7stBkjnLdbKJlg5Jur0Ot4whELV5e8vTcWgZk5KNawL1HCU5OTG1T8oBomQMyPax3YrXYQ0I571cTIQtxydktzifKG13MyvVIE96bmbFB42QB25CX-2btKs61z8cM6-GXZVQU5cK8bZV-7fHQ' }}
               />
             </View>
             <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join SHIFAA digital hospital today</Text>
+            <Text style={styles.subtitle}>Join NAJDDA digital hospital today</Text>
           </View>
 
           {/* Elevated Auth Card */}

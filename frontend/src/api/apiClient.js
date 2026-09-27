@@ -11,7 +11,7 @@ const apiClient = axios.create({
 
 // Interceptor to add auth token
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('shifaa_token');
+  const token = localStorage.getItem('najdda_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

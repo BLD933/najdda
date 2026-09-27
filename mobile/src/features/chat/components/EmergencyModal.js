@@ -17,7 +17,7 @@ export default function EmergencyModal({ visible, emergencyNumber = '112', onClo
       const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const coordinates = `${location.coords.latitude},${location.coords.longitude}`;
       await Share.share({
-        title: 'Position d’urgence SHIFAA',
+        title: 'Position d’urgence NAJDDA',
         message: `Ma position : https://maps.google.com/?q=${coordinates}\nJ’ai besoin d’une assistance médicale urgente.`,
       });
     } catch {

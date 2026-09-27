@@ -29,7 +29,7 @@ const CompleteProfilePage = () => {
   const [constants, setConstants] = useState(null);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState(() => {
-    const draft = localStorage.getItem('shifaa_profile_draft');
+    const draft = localStorage.getItem('najdda_profile_draft');
     return draft ? JSON.parse(draft).currentStep : 1;
   });
   const totalSteps = 5;
@@ -45,7 +45,7 @@ const CompleteProfilePage = () => {
   const [searchingHospitalName, setSearchingHospitalName] = useState(false);
 
   const [formData, setFormData] = useState(() => {
-    const draft = localStorage.getItem('shifaa_profile_draft');
+    const draft = localStorage.getItem('najdda_profile_draft');
     if (draft) {
       return JSON.parse(draft).formData;
     }
@@ -77,7 +77,7 @@ const CompleteProfilePage = () => {
 
   // Persistence Logic
   useEffect(() => {
-    localStorage.setItem('shifaa_profile_draft', JSON.stringify({ formData, currentStep, isManualHospital }));
+    localStorage.setItem('najdda_profile_draft', JSON.stringify({ formData, currentStep, isManualHospital }));
   }, [formData, currentStep, isManualHospital]);
 
   // Auto-load hospitals when user reaches Step 5. The load happens ONCE per
@@ -365,7 +365,7 @@ const CompleteProfilePage = () => {
       delete payload.countryCode;
 
       await profileService.updateProfile(payload);
-      localStorage.removeItem('shifaa_profile_draft');
+      localStorage.removeItem('najdda_profile_draft');
       window.location.href = '/dashboard';
     } catch (err) {
       const errMsg = err.response?.data?.message || t('wizard.error.update');

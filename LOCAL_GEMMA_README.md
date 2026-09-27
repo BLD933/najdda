@@ -1,12 +1,12 @@
-# 🩺 SHIFAA — Running with Local Gemma 4
+# 🩺 NAJDDA — Running with Local Gemma 4
 
-This guide explains how to set up SHIFAA to run **entirely locally** using **Google Gemma 4** models via Ollama. No cloud API keys, no data leaving your machine.
+This guide explains how to set up NAJDDA to run **entirely locally** using **Google Gemma 4** models via Ollama. No cloud API keys, no data leaving your machine.
 
 ---
 
 ## Why Local Gemma 4?
 
-| Feature | Cloud APIs | SHIFAA + Local Gemma 4 |
+| Feature | Cloud APIs | NAJDDA + Local Gemma 4 |
 |---|---|---|
 | Patient data privacy | ❌ Sent to external servers | ✅ 100% on-device, HIPAA by design |
 | Offline operation | ❌ Requires internet | ✅ Works with zero connectivity |
@@ -52,7 +52,7 @@ ollama pull gemma4:e2b
 
 ---
 
-## Step 3: Start SHIFAA Backend
+## Step 3: Start NAJDDA Backend
 
 ```bash
 cd backend

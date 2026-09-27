@@ -11,7 +11,7 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('shifaa_token');
+  const token = await SecureStore.getItemAsync('najdda_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -19,7 +19,7 @@ apiClient.interceptors.request.use(async (config) => {
 });
 
 apiClient.getToken = async () => {
-  return await SecureStore.getItemAsync('shifaa_token');
+  return await SecureStore.getItemAsync('najdda_token');
 };
 
 export default apiClient;

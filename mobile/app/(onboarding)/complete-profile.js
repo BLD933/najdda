@@ -460,7 +460,7 @@ export default function CompleteProfileScreen() {
         setGpsLoading(false);
         Alert.alert(
           'Location Permission Needed',
-          'SHIFAA uses your location to find nearby hospitals and emergency services. Please enable location access in Settings.',
+          'NAJDDA uses your location to find nearby hospitals and emergency services. Please enable location access in Settings.',
           [
             { text: 'Not Now', style: 'cancel' },
             { text: 'Go to Settings', onPress: () => Linking.openSettings() },
@@ -578,7 +578,7 @@ export default function CompleteProfileScreen() {
               <View style={styles.stepIconBox}>
                 <User size={24} color="#FFFFFF" />
               </View>
-              <Text style={styles.stepIntroTitle}>Welcome to Shifaa</Text>
+              <Text style={styles.stepIntroTitle}>Welcome to Najdda</Text>
               <Text style={styles.stepIntroSub}>Let's start with the basics to personalize your health dashboard.</Text>
             </View>
 
@@ -957,7 +957,7 @@ export default function CompleteProfileScreen() {
         {/* Custom Header Bar */}
         <View style={styles.topBar}>
           <View style={styles.topBarLeft}>
-            <Text style={styles.brandName}>SHIFAA</Text>
+            <Text style={styles.brandName}>NAJDDA</Text>
           </View>
           <View style={styles.topBarRight}>
             <TouchableOpacity style={styles.languageBtn}>

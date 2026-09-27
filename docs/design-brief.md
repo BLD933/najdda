@@ -13,13 +13,13 @@
 ## Product definition
 
 **What it is:**
-SHIFAA (شفاء) — « The AI Hospital That Fits in Your Pocket » : une plateforme d'assistance
+NAJDDA — « The AI Hospital That Fits in Your Pocket » : une plateforme d'assistance
 médicale multi-agents pour les patients au Maroc, qui coordonne triage, pharmacie, suivi et
 détection d'urgence derrière une seule interface conversationnelle.
 
 **What it is NOT:**
 - Pas un remplaçant de médecin (« AI assists healthcare professionals; it does not replace them » — `docs/context.md`).
-- Pas un chatbot généraliste (« SHIFAA is not a chatbot » — `docs/context.md`).
+- Pas un chatbot généraliste (« NAJDDA is not a chatbot » — `docs/context.md`).
 - Pas un dossier médical électronique ni une plateforme de télémédecine (vision long terme, hors périmètre UI actuel).
 - Pas un outil de diagnostic définitif : le Diagnosis Agent « fournit des possibilités, pas des diagnostics ».
 
@@ -169,7 +169,7 @@ le soir), et `prefers-color-scheme` est une attente standard sur mobile comme su
    tokens sémantiques (voir `design-tokens.md`) — c'est la raison pour laquelle le
    `@theme` Tailwind 4 est la tâche UI #1.
 2. Le basculement se fait via `class` sur `<html>` (Tailwind 4) + `localStorage`
-   (`shifaa-theme` ∈ `light` | `dark` | `system`) + respect de `prefers-color-scheme`
+   (`najdda-theme` ∈ `light` | `dark` | `system`) + respect de `prefers-color-scheme`
    quand la valeur est `system`. Toggle accessible dans la nav (Settings + Dashboard).
 3. **Les deux thèmes passent WCAG 2.2 AA sur le texte et les composants d'interface** (≥ 4.5:1
    texte, ≥ 3:1 bordures/icônes). Ratios réellement mesurés dans `design-tokens.md`.

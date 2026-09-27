@@ -67,7 +67,7 @@ export default function DashboardScreen() {
   const handleLogout = () => {
     Alert.alert(
       "Log Out",
-      "Are you sure you want to log out of Shifaa?",
+      "Are you sure you want to log out of Najdda?",
       [
         { text: "Cancel", style: "cancel" },
         { 
@@ -145,7 +145,7 @@ export default function DashboardScreen() {
             />
           </TouchableOpacity>
           <View style={styles.brandContainer}>
-            <Text style={styles.brandName}>SHIFAA</Text>
+            <Text style={styles.brandName}>NAJDDA</Text>
             <Text style={styles.greetingText}>Hello, {user?.fullName?.split(' ')[0] || 'Sami'} 👋</Text>
           </View>
         </View>
@@ -234,7 +234,7 @@ export default function DashboardScreen() {
 
             <View style={styles.triageBentoContent}>
               <Text style={styles.triageBentoTitle}>Feeling Unwell?</Text>
-              <Text style={styles.triageBentoSub}>Talk to Dr. SHIFAA for instant clinical check and health routing.</Text>
+              <Text style={styles.triageBentoSub}>Talk to Dr. NAJDDA for instant clinical check and health routing.</Text>
             </View>
 
             <View style={styles.consultLinkRow}>

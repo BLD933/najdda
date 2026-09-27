@@ -8,7 +8,7 @@ export const DEFAULT_LANG = 'fr';
 export const LANGS = ['fr', 'en'];
 
 const DICTS = { fr, en };
-const STORAGE_KEY = 'shifaa-lang';
+const STORAGE_KEY = 'najdda-lang';
 
 // Keys with no entry in the active dictionary. Surfaced in dev so a missing
 // translation fails loudly in the console instead of quietly shipping an

@@ -30,7 +30,7 @@ export default {
 
   // ── Auth: login ───────────────────────────────────────────────────────────
   'login.title': 'Content de vous revoir',
-  'login.subtitle': 'Connectez-vous à votre compte SHIFAA',
+  'login.subtitle': 'Connectez-vous à votre compte NAJDDA',
   'login.email': 'Adresse e-mail',
   'login.password': 'Mot de passe',
   'login.submitting': 'Connexion…',
@@ -42,7 +42,7 @@ export default {
 
   // ── Auth: register ────────────────────────────────────────────────────────
   'register.title': 'Créer un compte',
-  'register.subtitle': 'Rejoignez SHIFAA et commencez votre parcours santé',
+  'register.subtitle': 'Rejoignez NAJDDA et commencez votre parcours santé',
   'register.fullName': 'Nom complet',
   'register.fullNamePlaceholder': 'Jean Dupont',
   'register.email': 'Adresse e-mail',
@@ -60,7 +60,7 @@ export default {
   // Not "Quitter": on a nav bar next to an SOS screen, "quitter" reads as
   // "close the app". "Déconnexion" is unambiguous about signing out.
   'nav.exit': 'Déconnexion',
-  'brand.name': 'SHIFAA',
+  'brand.name': 'NAJDDA',
 
   'dashboard.hero.status': 'État médical : stable',
   'dashboard.hero.greeting': 'Salam, {name}.',

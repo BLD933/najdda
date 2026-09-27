@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>SHIFAA</string>
+    <string>NAJDDA</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -27,8 +27,8 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>shifaa</string>
-          <string>com.anonymous.shifaa-mobile</string>
+          <string>najdda</string>
+          <string>com.anonymous.najdda-mobile</string>
         </array>
       </dict>
     </array>
@@ -46,7 +46,7 @@
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>SHIFAA needs access to your camera to capture images of your symptoms for AI analysis.</string>
+    <string>NAJDDA needs access to your camera to capture images of your symptoms for AI analysis.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
@@ -54,13 +54,13 @@
     <key>NSLocationAlwaysUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>SHIFAA uses your location to find nearby hospitals and emergency services.</string>
+    <string>NAJDDA uses your location to find nearby hospitals and emergency services.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSMotionUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your device motion</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>SHIFAA needs access to your photos to upload images of your symptoms for AI analysis.</string>
+    <string>NAJDDA needs access to your photos to upload images of your symptoms for AI analysis.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

@@ -90,4 +90,4 @@
 | Micro-label | `{UPPERCASE} {tracking-widest}` 10px black | « System Live », « Identity Snapshot », « Chronic Registry » |
 | Emergency copy | « Emergency detected » + « Do not wait for a chat reply. Call now. » | ChatPage |
 | **Langue (VALIDÉ 2026-09-27)** | l'UI bascule FR/EN via `user.profile.preferredLanguage` ; défaut FR si ∈ {Arabic, French, Darija} | voir design-brief § Langue — les réponses LLM restent dans la langue du patient, jamais traduites |
-| **Thème (VALIDÉ 2026-09-27)** | light / dark / system — bascule jamais univoque | `.dark` + `localStorage['shifaa-theme']` + `prefers-color-scheme` ; default `system` |
+| **Thème (VALIDÉ 2026-09-27)** | light / dark / system — bascule jamais univoque | `.dark` + `localStorage['najdda-theme']` + `prefers-color-scheme` ; default `system` |

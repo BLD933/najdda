@@ -1,4 +1,4 @@
-# NAJDDA / SHIFAA
+# NAJDDA
 
 Multi-agent medical assistant (React 19 + Vite + Tailwind 4 frontend, Express + LangGraph backend).
 Medical domain: every UI change must preserve emergency affordances (emergency banners, 150/112

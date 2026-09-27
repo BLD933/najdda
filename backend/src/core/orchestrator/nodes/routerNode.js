@@ -13,7 +13,7 @@ async function routerNode(state) {
   // Single-line compact profile for 90% input token reduction
   const compactProfile = llmClient.formatCompactProfile(patientProfile);
 
-  const systemPrompt = `You are the SHIFAA Router. Select relevant agents: triage, pregnancy, pediatric, pharmacy, allergy, locator, diagnosis, report, followup.
+  const systemPrompt = `You are the NAJDDA Router. Select relevant agents: triage, pregnancy, pediatric, pharmacy, allergy, locator, diagnosis, report, followup.
 
 Patient Context: ${compactProfile}
 Recent History: ${recentHistory || 'None'}

@@ -1,6 +1,6 @@
 const llmClient = require('../../lib/GeminiClient');
 
-const SYSTEM_PROMPT = `You are the Pharmacy Agent at SHIFAA digital hospital. You are a medication safety specialist.
+const SYSTEM_PROMPT = `You are the Pharmacy Agent at NAJDDA digital hospital. You are a medication safety specialist.
 
 ## Role
 - Analyze patient's current medications

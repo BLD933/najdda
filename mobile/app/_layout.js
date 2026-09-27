@@ -18,7 +18,7 @@ export default function RootLayout() {
   useEffect(() => {
     onLayoutRootView();
     // Auto-restart fall detection if it was active before app refresh
-    AsyncStorage.getItem('shifaa_fall_protection_active').then(val => {
+    AsyncStorage.getItem('najdda_fall_protection_active').then(val => {
       if (val === 'true') {
         console.log('[Layout] Auto-restarting fall detection...');
         startFallDetection(null);

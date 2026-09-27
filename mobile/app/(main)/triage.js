@@ -112,7 +112,7 @@ export default function TriageScreen() {
     {
       id: '0',
       role: 'assistant',
-      text: 'Salam! 👋 I am your Triage Nurse at SHIFAA Hospital. How are you feeling today? Please describe your symptoms or health concern, and I will guide you to the right care.',
+      text: 'Salam! 👋 I am your Triage Nurse at NAJDDA Hospital. How are you feeling today? Please describe your symptoms or health concern, and I will guide you to the right care.',
     },
   ]);
   const [input, setInput] = useState('');
@@ -215,7 +215,7 @@ export default function TriageScreen() {
           emergencyNumber: res.emergencyNumber,
         } : m));
         if (res.requires_followup && res.followup_message) {
-          await scheduleLocalFollowup('triage', 'Suivi médical SHIFAA', res.followup_message, text, res.followup_time_minutes);
+          await scheduleLocalFollowup('triage', 'Suivi médical NAJDDA', res.followup_message, text, res.followup_time_minutes);
         }
         
       } else {
@@ -253,7 +253,7 @@ export default function TriageScreen() {
               } : m));
             }
             if (meta.requires_followup && meta.followup_message) {
-              scheduleLocalFollowup('triage', 'Suivi médical SHIFAA', meta.followup_message, text, meta.followup_time_minutes).catch(() => {});
+              scheduleLocalFollowup('triage', 'Suivi médical NAJDDA', meta.followup_message, text, meta.followup_time_minutes).catch(() => {});
             }
           },
           (errMsg) => {
@@ -305,7 +305,7 @@ export default function TriageScreen() {
     setMessages([{
       id: '0',
       role: 'assistant',
-      text: 'Salam! 👋 I am your Triage Nurse at SHIFAA Hospital. How are you feeling today?',
+      text: 'Salam! 👋 I am your Triage Nurse at NAJDDA Hospital. How are you feeling today?',
     }]);
     setSeverity(null);
     setEmergencyVisible(false);

@@ -1,6 +1,6 @@
 const llmClient = require('../../lib/GeminiClient');
 
-const SYSTEM_PROMPT = `You are the Report Agent at SHIFAA digital hospital. You generate structured medical reports.
+const SYSTEM_PROMPT = `You are the Report Agent at NAJDDA digital hospital. You generate structured medical reports.
 
 
 ## Language (mandatory)
