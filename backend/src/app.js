@@ -11,6 +11,7 @@ const childRoutes = require('./api/routes/childRoutes');
 const drugRoutes = require('./api/routes/drugRoutes');
 const conversationRoutes = require('./api/routes/conversationRoutes');
 const orchestratorRoutes = require('./api/routes/orchestratorRoutes');
+const voiceRoutes = require('./api/routes/voiceRoutes');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/children', childRoutes);
 app.use('/api/medications', drugRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/orchestrator', orchestratorRoutes);
+app.use('/api/voice', voiceRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
