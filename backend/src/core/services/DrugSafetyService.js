@@ -1,9 +1,6 @@
 const llmClient = require('../lib/GeminiClient');
-const RxNavClient = require('../../infra/clients/RxNavClient');
 const OpenFdaClient = require('../../infra/clients/OpenFdaClient');
 const { buildThemeGuardInstructions } = require('../lib/chatThemes');
-const path = require('path');
-const { executePythonSkill } = require('../tools/pythonExecutor');
 
 const SYSTEM_PROMPT = `You are the NAJDDA Medication Expert — a highly specialized pharmacist AI assistant.
 
@@ -36,56 +33,66 @@ class DrugSafetyService {
    * Helper to fetch data for all drugs concurrently
    */
   async gatherDrugData(medications) {
-    if (!medications || medications.length === 0) return { warnings: [], interactions: [] };
+    // Same shape as the populated return below. The early exit used to return
+    // `{ warnings, interactions }`, so destructuring `fdaWarnings` yielded
+    // undefined and building the response threw "cannot read properties of
+    // undefined (reading 'length')" — which is every web consultation where the
+    // patient has no medication saved and simply types a question.
+    if (!medications || medications.length === 0) {
+      return { fdaWarnings: [], interactions: [] };
+    }
 
-    // 1. Fetch individual drug warnings from OpenFDA
-    const fdaPromises = medications.map(drug => OpenFdaClient.searchDrug(drug));
-    const fdaResults = await Promise.allSettled(fdaPromises);
-    
-    let fdaWarnings = [];
-    fdaResults.forEach(res => {
-      if (res.status === 'fulfilled' && res.value && res.value.found) {
+    // 1. Fetch each drug's FDA-approved label from OpenFDA.
+    //
+    // One request per drug yields the warnings, the adverse reactions and the
+    // label's own "Drug Interactions" section — which is where the interaction
+    // data now comes from. The previous source was NLM RxNav's
+    // `/REST/interaction/list.json`, which the NLM has retired: it answers 404
+    // for every request, the client caught that and returned `[]`, and the model
+    // was asked about drug interactions having been told nothing at all.
+    const fdaResults = await Promise.allSettled(
+      medications.map((drug) => OpenFdaClient.searchDrug(drug)),
+    );
+
+    const labels = [];
+    const fdaWarnings = [];
+    const interactions = [];
+
+    fdaResults.forEach((res) => {
+      if (res.status !== 'fulfilled' || !res.value || !res.value.found) return;
+      const { query, warnings, adverseReactions, drugInteractions } = res.value;
+
+      if (warnings.length || adverseReactions.length) {
         fdaWarnings.push({
-          drug: res.value.query,
-          warnings: res.value.warnings.slice(0, 2), // Keep it concise
-          adverseReactions: res.value.adverseReactions.slice(0, 2)
+          drug: query,
+          // Keep it concise: the full label text would crowd out the question.
+          warnings: warnings.slice(0, 2),
+          adverseReactions: adverseReactions.slice(0, 2),
         });
+      }
+      if (drugInteractions.length) {
+        labels.push({ drug: query, sections: drugInteractions.slice(0, 2) });
       }
     });
 
-    // 2. Fetch interactions from RxNav
-    let interactions = [];
+    // Only meaningful when the patient actually takes more than one drug.
     if (medications.length >= 2) {
-      const rxCuiPromises = medications.map(drug => RxNavClient.getRxCUI(drug));
-      const rxCuiResults = await Promise.allSettled(rxCuiPromises);
-      
-      const rxcuiList = rxCuiResults
-        .filter(r => r.status === 'fulfilled' && r.value)
-        .map(r => r.value);
-        
-      if (rxcuiList.length >= 2) {
-        interactions = await RxNavClient.getInteractions(rxcuiList);
-      }
+      interactions.push({
+        drugs: medications,
+        severity: 'see label',
+        description: labels.length
+          ? 'Documented interaction guidance for each drug the patient takes, quoted below from the FDA label.'
+          : 'No interaction section found in the FDA label for any of these drugs. Say so plainly rather than asserting an interaction.',
+        sources: labels,
+      });
     }
 
-    // 3. Fetch interactions from OpenClaw Python Skill
-    let openClawInteractions = null;
-    if (medications.length >= 2) {
-      try {
-        const scriptPath = path.resolve(__dirname, '../../../../.agents/skills/drug-interaction-checker/impl.py');
-        const drugString = medications.join(', ');
-        openClawInteractions = await executePythonSkill(scriptPath, ['--drugs', drugString]);
-      } catch (err) {
-        console.error('OpenClaw execution failed:', err);
-      }
-    }
-
-    return { fdaWarnings, interactions, openClawInteractions };
+    return { fdaWarnings, interactions };
   }
 
   async checkInteraction({ message, history = [], medications = [], profile = {}, imageBase64 }) {
     // 1. Fetch drug data
-    const { fdaWarnings, interactions, openClawInteractions } = await this.gatherDrugData(medications);
+    const { fdaWarnings, interactions } = await this.gatherDrugData(medications);
 
     let contextStr = "DRUG SAFETY CONTEXT:\\n";
     
@@ -103,20 +110,20 @@ class DrugSafetyService {
       contextStr += `Patient's Medication List: None provided.\\n\\n`;
     }
 
-    if (interactions && interactions.length > 0) {
-      contextStr += "KNOWN DRUG INTERACTIONS (from NIH RxNav):\\n";
-      interactions.forEach(interaction => {
-        contextStr += `- Between [${interaction.drugs.join(' and ')}]: Severity: ${interaction.severity}. Description: ${interaction.description}\\n`;
+    // Interaction guidance quoted from the FDA label of each drug the patient
+    // takes. Fed verbatim rather than summarised so the model reasons over
+    // authoritative text instead of recalling pairings from memory — the
+    // previous data source returned nothing at all.
+    if (Array.isArray(interactions) && interactions.length > 0) {
+      interactions.forEach((interaction) => {
+        contextStr += `DOCUMENTED INTERACTION GUIDANCE (from FDA labels) for ${interaction.drugs.join(', ')}:\\n`;
+        (interaction.sources || []).forEach((src) => {
+          src.sections.forEach((section) => {
+            contextStr += `- ${src.drug}: ${section}\\n`;
+          });
+        });
+        contextStr += "Use this text to identify which of the drugs above interact, and name the pair. Do not assert an interaction that this text does not support.\\n\\n";
       });
-      contextStr += "\\n";
-    }
-
-    if (openClawInteractions && openClawInteractions.interactions && openClawInteractions.interactions.length > 0) {
-      contextStr += "KNOWN DRUG INTERACTIONS (from OpenClaw Python DB):\\n";
-      openClawInteractions.interactions.forEach(interaction => {
-        contextStr += `- Between [${interaction.drug_1} and ${interaction.drug_2}]: Severity: ${interaction.severity}. Effect: ${interaction.effect} Recommendation: ${interaction.recommendation}\\n`;
-      });
-      contextStr += "\\n";
     }
 
     if (fdaWarnings && fdaWarnings.length > 0) {
@@ -176,12 +183,13 @@ class DrugSafetyService {
     } catch (e) {
       console.warn('DrugSafetyService JSON fallback used:', e.message);
       result = {
-        status: "normal",
-        risk: "low",
-        advice: ["Vérifiez toujours auprès de votre médecin ou pharmacien avant de modifier vos doses."],
-        consult: "N'hésitez pas à poser vos questions à votre pharmacien.",
+        status: "warning",
+        risk: "unknown",
+        advice: ["Analyse indisponible — ne modifiez pas vos doses sans avis médecin/pharmacien."],
+        consult: "Consultez un médecin ou pharmacien avant toute décision.",
         followup_time_minutes: null,
-        followup_message: null
+        followup_message: null,
+        degraded: true
       };
     }
 
@@ -190,7 +198,7 @@ class DrugSafetyService {
       ...result,
       meta: {
         medicationsChecked: medications,
-        interactionsFound: interactions.length + (openClawInteractions ? openClawInteractions.interaction_count : 0),
+        interactionsFound: interactions.length,
         warningsFound: fdaWarnings.length
       }
     };

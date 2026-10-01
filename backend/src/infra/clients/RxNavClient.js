@@ -1,5 +1,17 @@
 const axios = require('axios');
 
+/**
+ * RxNorm identifier lookup (NLM).
+ *
+ * ⚠️ `getInteractions` is DEAD and must not be used. The NLM retired the
+ * `/REST/interaction/*` endpoints: every request answers 404, the catch block
+ * below turns that into `[]`, and the caller concludes "no interactions
+ * found". That is how drug interaction assessment ended up running on the
+ * model's own memory — it was told there was nothing to report.
+ *
+ * Interaction data now comes from the FDA-approved label sections fetched by
+ * `OpenFdaClient` (see `drug_interactions`).
+ */
 class RxNavClient {
   constructor() {
     this.baseUrl = 'https://rxnav.nlm.nih.gov/REST';
@@ -29,6 +41,11 @@ class RxNavClient {
    * @param {string[]} rxcuiList - Liste des identifiants RxCUI
    */
   async getInteractions(rxcuiList) {
+    console.warn(
+      '[RxNavClient] getInteractions() est obsolète : la NLM a retiré les '
+      + 'endpoints /REST/interaction/* (404). Utilisez les sections '
+      + '"drug_interactions" des notices FDA via OpenFdaClient.',
+    );
     if (!rxcuiList || rxcuiList.length < 2) {
       return []; // Pas d'interactions possibles avec 0 ou 1 médicament
     }

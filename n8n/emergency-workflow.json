@@ -1,22 +1,24 @@
 {
-  "name": "Emergency Notification and Hospital Lookup",
+  "name": "NAJDDA — Emergency Alert & Hospital Lookup",
+  "active": false,
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "emergency-alert",
         "responseMode": "onReceived",
-        "options": {}
+        "responseData": "allEntries",
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "1d2d74d7-2b4c-4bef-bd04-e5e4817d5a01",
       "name": "Emergency Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        240,
-        300
-      ],
-      "webhookId": "a94e95f7-2871-4e7c-8d5e-890b4a80e49b"
+      "position": [240, 300],
+      "webhookId": "a94e95f7-2871-4e7c-8d5e-890b4a80e49b",
+      "notes": "Fires from backend/src/api/middlewares/emergencyMiddleware.js. Set Header Auth credential here (x-n8n-secret) — the Code node also refuses a wrong secret, so an unauthenticated caller cannot reach WhatsApp."
     },
     {
       "parameters": {
@@ -30,8 +32,8 @@
           "conditions": [
             {
               "id": "50e42f51-9c51-4df6-89f2-c3e730adf8da",
-              "leftValue": "={{ $json.body.isEmergency }}",
-              "rightValue": true,
+              "leftValue": "={{ $json.body.isEmergency === true || $json.body.source === 'keyword' }}",
+              "rightValue": "",
               "operator": {
                 "type": "boolean",
                 "operation": "true",
@@ -41,16 +43,25 @@
           ],
           "combinator": "and"
         },
+        "looseTypeValidation": false,
         "options": {}
       },
       "id": "a31434ee-8c26-4c47-801b-18faa0c70e76",
       "name": "Is Emergency",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [
-        460,
-        300
-      ]
+      "position": [460, 300],
+      "notes": "Also matches the deterministic pre-filter (source: 'keyword'), which bypasses the LLM classifier entirely."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Acknowledges a non-emergency POST instead of dropping it silently.\n// The false branch used to be empty: the execution ended with no output, so\n// there was no audit trail that the alert had been seen and rejected.\nconst alert = $input.first().json.body || {};\nreturn [{\n  json: {\n    event: 'emergency_alert_ignored',\n    status: 'not_an_emergency',\n    userId: alert.userId || null,\n    source: alert.source || null,\n    reason: alert.reason || 'isEmergency was not true',\n    receivedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "b7c1d2e3-4f56-4a1b-8c9d-0e1f2a3b4c5d",
+      "name": "Log Non-Emergency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 460]
     },
     {
       "parameters": {
@@ -61,15 +72,19 @@
           "parameters": [
             {
               "name": "location",
-              "value": "={{ $node[\"Emergency Webhook\"].json.body.location.lat + ',' + $node[\"Emergency Webhook\"].json.body.location.lng }}"
+              "value": "={{ (($json.body.location || {}).lat != null && ($json.body.location || {}).lng != null) ? $json.body.location.lat + ',' + $json.body.location.lng : '0,0' }}"
+            },
+            {
+              "name": "type",
+              "value": "hospital"
             },
             {
               "name": "rankby",
               "value": "distance"
             },
             {
-              "name": "type",
-              "value": "hospital"
+              "name": "radius",
+              "value": "20000"
             },
             {
               "name": "key",
@@ -85,28 +100,61 @@
       "name": "Find Nearest Hospital",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        700,
-        200
-      ]
+      "position": [700, 200],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "notes": "Never fatal: a missing Google key or a Maps outage must not stop the WhatsApp alert to the patient's contact, which is the part that actually saves a life. On error the Code node below falls back to 'hospital lookup unavailable'."
     },
     {
       "parameters": {
-        "functionCode": "const alert = $node[\"Emergency Webhook\"].json.body || {};\nconst mapsResponse = items[0].json || {};\nconst hospital = Array.isArray(mapsResponse.results) && mapsResponse.results.length > 0\n  ? mapsResponse.results[0]\n  : null;\n\nconst location = alert.location || {};\nconst profile = alert.medicalProfile || {};\nconst mapsLink = Number.isFinite(Number(location.lat)) && Number.isFinite(Number(location.lng))\n  ? `https://www.google.com/maps?q=${location.lat},${location.lng}`\n  : 'Location unavailable';\nconst hospitalName = hospital?.name || 'Nearest hospital could not be identified';\nconst hospitalAddress = hospital?.vicinity || hospital?.formatted_address || 'Address unavailable';\nconst allergies = Array.isArray(profile.allergies) ? profile.allergies.join(', ') : (profile.allergies || 'Not provided');\nconst conditions = Array.isArray(profile.conditions) ? profile.conditions.join(', ') : (profile.conditions || 'Not provided');\nconst bloodType = profile.bloodType || 'Not provided';\n\nconst whatsappMessage = [\n  'EMERGENCY ALERT',\n  '',\n  `Reason: ${alert.message || 'No user message was provided.'}`,\n  'The emergency detector marked this request as critical. The user may not be responding.',\n  '',\n  `Location: ${mapsLink}`,\n  `Nearest hospital: ${hospitalName}`,\n  `Hospital address: ${hospitalAddress}`,\n  '',\n  'Medical profile:',\n  `Allergies: ${allergies}`,\n  `Conditions: ${conditions}`,\n  `Blood type: ${bloodType}`,\n  '',\n  'Please contact local emergency services immediately if this is an active emergency.'\n].join('\\n');\n\nreturn [{\n  json: {\n    userId: alert.userId || null,\n    isEmergency: alert.isEmergency === true,\n    emergencyReason: alert.message || null,\n    location,\n    mapsLink,\n    nearestHospital: hospital ? { name: hospitalName, address: hospitalAddress, placeId: hospital.place_id || null } : null,\n    emergencyContact: alert.emergencyContact || {},\n    recipientPhone: alert.emergencyContact?.phone || null,\n    medicalProfile: { allergies, conditions, bloodType },\n    whatsappMessage\n  }\n}];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const expectedSecret = ($env && $env.N8N_WEBHOOK_SECRET) || null;\ntry {\n  const wh = ($('Emergency Webhook').first().json.headers) || {};\n  const provided = wh['x-n8n-secret'];\n  if (expectedSecret && provided !== expectedSecret) { throw new Error('Unauthorized: bad webhook secret'); }\n} catch (e) {\n  if (String(e.message).includes('Unauthorized')) throw e;\n}\n\nconst alert = $('Emergency Webhook').first().json.body || {};\n// The hospital lookup may have failed (missing key, timeout): keep the alert.\nconst mapsResponse = $input.first().json || {};\nconst hospital = Array.isArray(mapsResponse.results) && mapsResponse.results.length > 0\n  ? mapsResponse.results[0]\n  : null;\n\nconst location = alert.location || {};\nconst profile = alert.medicalProfile || {};\nconst hasCoords = location.lat != null && location.lng != null;\nconst mapsLink = hasCoords\n  ? `https://www.google.com/maps?q=${location.lat},${location.lng}`\n  : 'Location unavailable';\nconst hospitalName = hospital?.name || 'Nearest hospital could not be identified';\nconst hospitalAddress = hospital?.vicinity || hospital?.formatted_address || 'Address unavailable';\nconst allergies = Array.isArray(profile.allergies) ? profile.allergies.join(', ') : (profile.allergies || 'Not provided');\nconst conditions = Array.isArray(profile.conditions) ? profile.conditions.join(', ') : (profile.conditions || 'Not provided');\nconst bloodType = profile.bloodType || 'Not provided';\n\n// The backend sends `emergencyContacts` (array); older callers sent\n// `emergencyContact` (object). A WhatsApp send with an undefined number is a\n// silent no-op, so both shapes are normalised and a missing phone is surfaced\n// rather than dropped.\nconst contacts = Array.isArray(alert.emergencyContacts)\n  ? alert.emergencyContacts\n  : (alert.emergencyContact ? [alert.emergencyContact] : []);\nconst contact = contacts.find((c) => c && (c.phone || c.phoneNumber)) || {};\nconst recipientPhone = contact.phone || contact.phoneNumber || null;\n\nconst whatsappMessage = [\n  'EMERGENCY ALERT',\n  '',\n  `Reason: ${alert.message || 'No user message was provided.'}`,\n  'The emergency detector marked this request as critical. The user may not be responding.',\n  '',\n  `Location: ${mapsLink}`,\n  `Nearest hospital: ${hospitalName}`,\n  `Hospital address: ${hospitalAddress}`,\n  '',\n  'Medical profile:',\n  `Allergies: ${allergies}`,\n  `Conditions: ${conditions}`,\n  `Blood type: ${bloodType}`,\n  '',\n  'Please contact local emergency services immediately if this is an active emergency.'\n].join('\\n');\n\nreturn [{\n  json: {\n    userId: alert.userId || null,\n    isEmergency: true,\n    source: alert.source || 'classifier',\n    emergencyReason: alert.message || null,\n    location,\n    hasCoords,\n    mapsLink,\n    nearestHospital: hospital ? { name: hospitalName, address: hospitalAddress, placeId: hospital.place_id || null } : null,\n    emergencyContact: contact,\n    recipientPhone,\n    // Drives the branch below: no phone means the alert must still be logged.\n    canNotify: Boolean(recipientPhone),\n    medicalProfile: { allergies, conditions, bloodType },\n    whatsappMessage\n  }\n}];"
       },
       "id": "5c1a85cc-4f69-4238-8edb-9b386471556a",
       "name": "Build Emergency Message",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [
-        940,
-        200
-      ]
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [940, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+              "leftValue": "={{ $json.canNotify }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "id": "d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a",
+      "name": "Has Recipient",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1180, 320]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.EVOLUTION_API_BASE_URL + '/message/sendText/' + $env.EVOLUTION_INSTANCE }}",
+        "url": "={{ ($env.EVOLUTION_API_BASE_URL || '').replace(/\\/$/, '') + '/message/sendText/' + $env.EVOLUTION_INSTANCE }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -132,85 +180,64 @@
       "name": "Send WhatsApp Emergency Alert",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1180,
-        200
-      ]
+      "position": [1400, 200],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "notes": "Non-fatal by design: a WhatsApp provider failure must still leave a durable log entry."
     },
     {
       "parameters": {
-        "functionCode": "const alert = $node[\"Build Emergency Message\"].json;\nconst whatsappResponse = items[0].json || {};\n\nreturn [{\n  json: {\n    event: 'emergency_whatsapp_alert',\n    status: 'prepared_for_logging',\n    userId: alert.userId,\n    isEmergency: alert.isEmergency,\n    emergencyReason: alert.emergencyReason,\n    recipientPhone: alert.recipientPhone,\n    nearestHospital: alert.nearestHospital,\n    mapsLink: alert.mapsLink,\n    whatsappResponse,\n    processedAt: new Date().toISOString()\n  }\n}];"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const alert = $('Build Emergency Message').first().json;\nconst results = $input.all();\n\n// The alert event plus whatever the WhatsApp node produced. `status` used to\n// be the literal string 'prepared_for_logging' and the object then went\n// nowhere, so an emergency notification was never actually recorded.\nconst whatsapp = results.find((r) => r.json && (r.json.key || r.json.sid || r.json.status)) || {};\n\nreturn [{\n  json: {\n    event: 'emergency_whatsapp_alert',\n    status: alert.canNotify ? (whatsapp.json ? 'notified' : 'notify_failed') : 'no_recipient',\n    userId: alert.userId,\n    source: alert.source,\n    isEmergency: true,\n    emergencyReason: alert.emergencyReason,\n    recipientPhone: alert.recipientPhone,\n    emergencyContact: alert.emergencyContact,\n    hasCoords: alert.hasCoords,\n    nearestHospital: alert.nearestHospital,\n    mapsLink: alert.mapsLink,\n    whatsappResponse: whatsapp.json || whatsapp,\n    processedAt: new Date().toISOString()\n  }\n}];"
       },
       "id": "bd218263-faf7-4a8a-9297-18155ef40510",
       "name": "Prepare Emergency Log",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [
-        1420,
-        200
-      ]
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1620, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const alert = $('Build Emergency Message').first().json;\nreturn [{\n  json: {\n    event: 'emergency_alert_not_notified',\n    status: 'no_recipient_phone',\n    userId: alert.userId,\n    source: alert.source,\n    emergencyReason: alert.emergencyReason,\n    mapsLink: alert.mapsLink,\n    nearestHospital: alert.nearestHospital,\n    note: 'No emergency contact with a phone number on the profile. Add one in the Medical Passport so alerts can be delivered.',\n    processedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "e3f4a5b6-c7d8-4e9f-0a1b-2c3d4e5f6a7b",
+      "name": "Log Missing Recipient",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 460]
     }
   ],
   "pinData": {},
   "connections": {
     "Emergency Webhook": {
-      "main": [
-        [
-          {
-            "node": "Is Emergency",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Is Emergency", "type": "main", "index": 0 }]]
     },
     "Is Emergency": {
       "main": [
-        [
-          {
-            "node": "Find Nearest Hospital",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
+        [{ "node": "Find Nearest Hospital", "type": "main", "index": 0 }],
+        [{ "node": "Log Non-Emergency", "type": "main", "index": 0 }]
       ]
     },
     "Find Nearest Hospital": {
-      "main": [
-        [
-          {
-            "node": "Build Emergency Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Build Emergency Message", "type": "main", "index": 0 }]]
     },
     "Build Emergency Message": {
+      "main": [[{ "node": "Has Recipient", "type": "main", "index": 0 }]]
+    },
+    "Has Recipient": {
       "main": [
-        [
-          {
-            "node": "Send WhatsApp Emergency Alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Send WhatsApp Emergency Alert", "type": "main", "index": 0 }],
+        [{ "node": "Log Missing Recipient", "type": "main", "index": 0 }]
       ]
     },
     "Send WhatsApp Emergency Alert": {
-      "main": [
-        [
-          {
-            "node": "Prepare Emergency Log",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Prepare Emergency Log", "type": "main", "index": 0 }]]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
