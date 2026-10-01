@@ -7,7 +7,9 @@ class AuthPresenter {
       role: user.role,
       profile: user.profile ? {
         phoneNumber: user.profile.phoneNumber,
-        dateOfBirth: user.profile.dateOfBirth,
+        dateOfBirth: user.profile.dateOfBirth instanceof Date
+          ? user.profile.dateOfBirth.toISOString().slice(0, 10)
+          : user.profile.dateOfBirth,
         gender: user.profile.gender,
         bloodType: user.profile.bloodType,
         city: user.profile.city,
@@ -28,6 +30,9 @@ class AuthPresenter {
         medicalHistory: user.profile.medicalHistory,
         chronicDiseases: user.profile.chronicDiseases,
         emergencyContacts: user.profile.emergencyContacts,
+        updatedAt: user.profile.updatedAt instanceof Date
+          ? user.profile.updatedAt.toISOString()
+          : user.profile.updatedAt,
       } : null,
       createdAt: user.createdAt
     };

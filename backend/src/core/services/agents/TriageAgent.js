@@ -76,7 +76,8 @@ class TriageAgent {
       return formatReply(parsed, patientProfile);
     }
 
-    return raw;
+    // Parse échec -> ne jamais masquer une urgence : marquer à relire, sévérité MEDIUM
+    return `${typeof raw === 'string' ? raw : ''}\n[SEVERITY:MEDIUM][NEEDS_REVIEW]`;
   }
 
   async *streamAssess(history, patientProfile = {}) {
@@ -104,9 +105,9 @@ class TriageAgent {
   }
 
   getSeverity(replyText) {
-    if (!replyText) return 'LOW';
+    if (!replyText) return 'MEDIUM';
     const match = replyText.match(/\[SEVERITY:\s*(CRITICAL|HIGH|MEDIUM|LOW)\]/i);
-    return match ? match[1].toUpperCase() : 'LOW';
+    return match ? match[1].toUpperCase() : 'MEDIUM';
   }
 }
 

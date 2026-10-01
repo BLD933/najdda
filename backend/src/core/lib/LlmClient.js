@@ -53,14 +53,25 @@ class LlmClient {
    * Reduces prompt input tokens by 90% and optimizes KV-Cache reuse.
    */
   formatCompactProfile(profile = {}) {
-    const age = profile.age || (profile.dateOfBirth ? new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear() : '?');
+    let age = profile.age || '?';
+    if (!profile.age && profile.dateOfBirth) {
+      const b = new Date(profile.dateOfBirth);
+      if (!Number.isNaN(b.getTime())) {
+        const n = new Date();
+        age = n.getFullYear() - b.getFullYear();
+        if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) age -= 1;
+      }
+    }
     const gender = profile.gender ? profile.gender.charAt(0).toUpperCase() : '?';
     const chronic = profile.chronicDiseases || 'None';
     const meds = profile.medications ? (Array.isArray(profile.medications) ? profile.medications.map(m => m.nom || m).join(', ') : profile.medications) : 'None';
     const allergies = profile.drugAllergies || 'None';
     const preg = profile.isPregnant ? `Yes (Trim ${profile.trimester || '1'})` : 'No';
+    // Deterministic reply language (see core/lib/language.js): disambiguates
+    // Arabic-script (MSA vs Darija) and Tifinagh before the LLM guesses.
+    const replyLang = profile.replyLanguage || profile.preferredLanguage || '?';
 
-    return `[Patient: ${gender}, ${age}y | Meds: ${meds} | Allergies: ${allergies} | Chronic: ${chronic} | Pregnant: ${preg}]`;
+    return `[Patient: ${gender}, ${age}y | Meds: ${meds} | Allergies: ${allergies} | Chronic: ${chronic} | Pregnant: ${preg} | ReplyLang: ${replyLang}]`;
   }
 
   /**
@@ -198,6 +209,11 @@ class LlmClient {
   }
 
   async _completeOnce(messages, options = {}) {
+    // Offline stub: lets the whole interface run with no API key. See llmMock.js.
+    if (process.env.LLM_MOCK === 'true') {
+      const { mockComplete } = require('./llmMock');
+      return mockComplete(messages, options);
+    }
     const response = await fetch(this.baseUrl, {
       method: 'POST',
       headers: this._headers(),
@@ -270,6 +286,11 @@ class LlmClient {
    * Yields text chunks.
    */
   async *completeStream(messages, options = {}) {
+    if (process.env.LLM_MOCK === 'true') {
+      const { mockCompleteStream } = require('./llmMock');
+      yield* mockCompleteStream(messages, options);
+      return;
+    }
     const response = await fetch(this.baseUrl, {
       method: 'POST',
       headers: this._headers(),

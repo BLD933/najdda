@@ -47,11 +47,23 @@ class ProfileRepository {
   }
 
   async update(userId, data) {
-    // Filter out undefined values to prevent SQL errors
+    const ALLOWED_COLUMNS = new Set([
+      'phone_number','date_of_birth','gender','blood_type','city','country',
+      'preferred_language','weight','height','is_pregnant','drug_allergies',
+      'food_allergies','smoking_status','alcohol_status','insurance_type',
+      'medications','preferred_hospital','latitude','longitude',
+      'medical_history','chronic_diseases','emergency_contacts',
+    ]);
+    // Filter out undefined values to prevent SQL errors + allowlist colonnes
     const filteredData = Object.entries(data).reduce((acc, [key, value]) => {
+      if (!ALLOWED_COLUMNS.has(key)) return acc;
       acc[key] = value === undefined ? null : value;
       return acc;
     }, {});
+
+    if (Object.keys(filteredData).length === 0) {
+      throw new Error('No valid profile fields to update');
+    }
 
     const fields = Object.keys(filteredData).map((key, index) => `${key} = $${index + 2}`).join(', ');
     const values = Object.values(filteredData);

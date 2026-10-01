@@ -5,15 +5,18 @@ const profileRepository = require('../../infra/repositories/ProfileRepository');
 
 class AuthService {
   async register({ fullName, email, password }) {
-    const existingUser = await userRepository.findByEmail(email);
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+    const existingUser = await userRepository.findByEmail(normalizedEmail);
     if (existingUser) {
-      throw new Error('User already exists');
+      const err = new Error('User already exists');
+      err.code = '23505';
+      throw err;
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const user = await userRepository.create({
       fullName,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
     });
 
@@ -23,6 +26,7 @@ class AuthService {
     const token = this.generateToken(user.id);
     
     // Merge User + Profile
+    delete user.password;
     return { 
       user: { ...user, profile }, 
       token 
@@ -30,7 +34,8 @@ class AuthService {
   }
 
   async login({ email, password }) {
-    const user = await userRepository.findByEmail(email);
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+    const user = await userRepository.findByEmail(normalizedEmail);
     if (!user) {
       throw new Error('Invalid credentials');
     }
@@ -53,8 +58,11 @@ class AuthService {
   }
 
   generateToken(id) {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
+    const { randomUUID } = require('crypto');
+    return jwt.sign({ id, jti: randomUUID() }, process.env.JWT_SECRET, {
+      expiresIn: '1d',
+      algorithm: 'HS256',
+      issuer: 'najdda-api',
     });
   }
 }

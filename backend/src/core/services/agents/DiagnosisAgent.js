@@ -36,7 +36,7 @@ class DiagnosisAgent {
   async analyze(history, triageData, patientProfile) {
     const messages = [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: `Patient Profile: ${JSON.stringify(patientProfile)}\n\nTriage Data: ${triageData}\n\nConversation: ${JSON.stringify(history)}` },
+      { role: 'user', content: `Patient Profile: ${JSON.stringify(patientProfile)}\n\nTriage Data: ${typeof triageData === 'string' ? triageData : JSON.stringify(triageData)}\n\nConversation: ${JSON.stringify(history)}` },
     ];
     return llmClient.complete(messages, { temperature: 0.3, maxTokens: 2048 });
   }

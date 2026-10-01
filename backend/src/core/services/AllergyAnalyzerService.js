@@ -102,9 +102,9 @@ OUTPUT FORMAT (strict JSON only):
       if (parsed.followup_message === undefined) parsed.followup_message = null;
       return parsed;
     } catch (e) {
-      console.error("Failed to parse LLM JSON:", rawOutput, e);
+      console.error("Failed to parse LLM JSON:", e.message);
       return {
-        status: "normal",
+        status: "warning",
         allergy_risk: "unknown",
         likely_cause: "unknown",
         advice: ["Je n'ai pas pu analyser correctement votre situation."],
