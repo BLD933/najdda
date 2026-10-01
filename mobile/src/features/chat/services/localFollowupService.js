@@ -104,29 +104,50 @@ export async function resolveCheckIn(checkInId) {
 }
 
 /**
- * Triggers the emergency automation.
- * TODO: Replace placeholder with your real n8n webhook URL when ready.
+ * Triggers the emergency automation via backend/n8n.
+ * Backend: N8N_EMERGENCY_WEBHOOK_URL — Mobile: EXPO_PUBLIC_N8N_WEBHOOK_URL
  */
-export async function triggerEmergencyAutomation(reason, context = '') {
+export async function triggerEmergencyAutomation(reason, context = '', extra = {}) {
   console.warn(`[Emergency] Triggered! Reason: ${reason}. Context: "${context}"`);
 
-  // TODO: Replace with real n8n webhook URL when ready
-  const N8N_WEBHOOK_URL = null; // e.g. 'https://your-n8n.com/webhook/najdda-emergency'
+  const N8N_WEBHOOK_URL = process.env.EXPO_PUBLIC_N8N_WEBHOOK_URL;
 
   if (!N8N_WEBHOOK_URL) {
-    console.warn('[Emergency] No webhook URL configured yet. Skipping network call.');
-    return;
+    console.warn('[Emergency] EXPO_PUBLIC_N8N_WEBHOOK_URL manquant. Skipping network call.');
+    return { sent: false, reason: 'missing-webhook-url' };
   }
 
   try {
-    await fetch(N8N_WEBHOOK_URL, {
+    const contact = Array.isArray(extra.emergencyContacts)
+      ? extra.emergencyContacts[0] || {}
+      : extra.emergencyContact || {};
+    const payload = {
+      isEmergency: true,
+      userId: extra.userId || null,
+      message: reason,
+      location: extra.location || {},
+      emergencyContact: contact,
+      medicalProfile: extra.medicalProfile || {},
+      context,
+      triggeredAt: new Date().toISOString(),
+    };
+    const headers = { 'Content-Type': 'application/json' };
+    if (process.env.EXPO_PUBLIC_N8N_SECRET) headers['x-n8n-secret'] = process.env.EXPO_PUBLIC_N8N_SECRET;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason, context, triggeredAt: new Date().toISOString() }),
+      headers,
+      signal: controller.signal,
+      body: JSON.stringify(payload),
     });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(`webhook ${res.status}`);
     console.log('[Emergency] Webhook sent successfully.');
+    return { sent: true };
   } catch (err) {
     console.error('[Emergency] Failed to send webhook:', err);
+    return { sent: false, error: err.message };
   }
 }
 

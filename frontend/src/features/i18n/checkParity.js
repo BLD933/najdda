@@ -1,16 +1,17 @@
 /**
- * Key-parity check between fr.js and en.js.
+ * Key-parity check across ALL locales (fr, en, ar, ary, tzm).
  *
  * Run:  npm run i18n:check
  *
- * A key that exists in one dictionary and not the other means the other
- * language silently falls back — which for a bilingual medical product means a
- * French patient sees an English string, or the reverse. That is exactly the
- * kind of thing that reaches production unnoticed, so it is checked here
- * rather than by eye.
+ * A key missing from one dictionary falls back through its chain
+ * (ary→ar, tzm→fr, all→en) — which for a medical product means a patient
+ * may see a string in the wrong language without anyone noticing. Checked
+ * here rather than by eye. Placeholders must also match en (the reference).
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
+const LOCALES = ['fr', 'en', 'ar', 'ary', 'tzm'];
 
 const load = (name) => {
   const path = fileURLToPath(new URL(`./locales/${name}.js`, import.meta.url));
@@ -19,29 +20,8 @@ const load = (name) => {
   return new Function(source)();
 };
 
-const fr = load('fr');
-const en = load('en');
-
-const frKeys = Object.keys(fr);
-const enKeys = Object.keys(en);
-
-const missingInFr = enKeys.filter((k) => !(k in fr));
-const missingInEn = frKeys.filter((k) => !(k in en));
-
-// Also catches a key added twice, which silently keeps the last value.
-const dupes = (dict) => {
-  const seen = new Set();
-  return Object.keys(dict).filter((k) => (seen.has(k) ? true : (seen.add(k), false)));
-};
-
-const placeholders = (dict) =>
-  Object.entries(dict)
-    .filter(([k, v]) => {
-      const enPh = (en[k] || '').match(/\{(\w+)\}/g)?.sort().join(',') || '';
-      const frPh = (v || '').match(/\{(\w+)\}/g)?.sort().join(',') || '';
-      return enPh !== frPh;
-    })
-    .map(([k]) => k);
+const dicts = Object.fromEntries(LOCALES.map((l) => [l, load(l)]));
+const en = dicts.en;
 
 let bad = 0;
 
@@ -53,16 +33,42 @@ const report = (label, items, hint) => {
   if (hint) console.log(`  → ${hint}`);
 };
 
-report('missing from fr.js', missingInFr, 'copy the EN string and translate it');
-report('missing from en.js', missingInEn, 'add the EN string');
-report('placeholder mismatch between fr and en', placeholders({ ...en, ...fr }));
-report('duplicated keys (fr)', dupes(fr));
-report('duplicated keys (en)', dupes(en));
+for (const l of LOCALES) {
+  if (l === 'en') continue;
+  const missing = Object.keys(en).filter((k) => !(k in dicts[l]));
+  report(`missing from ${l}.js`, missing, 'translate the EN string');
+}
 
-console.log(`\nfr: ${frKeys.length} keys, en: ${enKeys.length} keys`);
+const extra = [];
+for (const l of LOCALES) {
+  for (const k of Object.keys(dicts[l])) {
+    if (!(k in en)) extra.push(`${l}:${k}`);
+  }
+}
+report('keys absent from en.js (reference)', extra, 'add the EN string first');
+
+const placeholders = Object.keys(en).filter((k) => {
+  const ref = (en[k] || '').match(/\{(\w+)\}/g)?.sort().join(',') || '';
+  return LOCALES.some((l) => {
+    const v = dicts[l][k];
+    if (v === undefined) return false;
+    const ph = (v || '').match(/\{(\w+)\}/g)?.sort().join(',') || '';
+    return ph !== ref;
+  });
+});
+report('placeholder mismatch vs en', placeholders, 'keep every {var} identical');
+
+// Also catches a key added twice, which silently keeps the last value.
+const dupes = (dict) => {
+  const seen = new Set();
+  return Object.keys(dict).filter((k) => (seen.has(k) ? true : (seen.add(k), false)));
+};
+for (const l of LOCALES) report(`duplicated keys (${l})`, dupes(dicts[l]));
+
+console.log(`\n${LOCALES.map((l) => `${l}: ${Object.keys(dicts[l]).length}`).join(', ')}`);
 
 if (bad === 0) {
-  console.log('parity OK — same keys and same placeholders in both dictionaries');
+  console.log('parity OK — same keys and same placeholders in all dictionaries');
   process.exit(0);
 }
 process.exit(1);

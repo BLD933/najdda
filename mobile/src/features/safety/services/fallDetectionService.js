@@ -28,7 +28,6 @@ export async function registerFallNotificationCategory() {
 
 function handleReading(data) {
   const mag = magnitude(data);
-  const now = Date.now();
 
   if (mag > SPIKE_THRESHOLD) {
     // Each spike debounces the timer — fires 1.2s after the LAST spike
@@ -36,7 +35,7 @@ function handleReading(data) {
 
     _fireTimer = setTimeout(() => {
       _fireTimer = null;
-      if (now - _lastFallTime > COOLDOWN_MS) {
+      if (Date.now() - _lastFallTime > COOLDOWN_MS) {
         _lastFallTime = Date.now();
         console.log('[FallDetection] FIRE! Peak was above ' + SPIKE_THRESHOLD);
         onFallConfirmed();

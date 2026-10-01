@@ -1,3 +1,5 @@
+> DEPRECATED : voir MIGRATION-NOTES.md (provider OpenAI-compatible, presets .env.preset.*). Les perfs <50ms/TTFT ne sont pas reproductibles sur CPU (18s mesuré, TEST-RESULTS.md).
+
 # 🩺 NAJDDA — Running with Local Gemma 4
 
 This guide explains how to set up NAJDDA to run **entirely locally** using **Google Gemma 4** models via Ollama. No cloud API keys, no data leaving your machine.

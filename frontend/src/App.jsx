@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './features/auth/context/AuthContext';
 import { ThemeProvider } from './features/theme/context/ThemeContext';
 import { I18nProvider, useTranslation } from './features/i18n/I18nContext';
@@ -9,10 +9,13 @@ import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import CompleteProfilePage from './pages/CompleteProfilePage';
 import ChatPage from './pages/ChatPage';
+import DomainPage from './pages/DomainPage';
+import EmergencyPage from './pages/EmergencyPage';
 
 const ProtectedRoute = ({ children }) => {
   const { user, isAuthenticated, loading } = useAuth();
   const { t } = useTranslation();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -24,31 +27,52 @@ const ProtectedRoute = ({ children }) => {
   }
   
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  // Check if profile is complete
+  // Check if profile is complete (aligné backend 400 + wizard)
   const isProfileComplete = 
     user?.profile?.dateOfBirth && 
     user?.profile?.bloodType && 
     user?.profile?.city &&
+    user?.profile?.country &&
+    user?.profile?.preferredLanguage &&
+    user?.profile?.chronicDiseases &&
     user?.profile?.phoneNumber &&
     user?.profile?.gender &&
     user?.profile?.weight &&
     user?.profile?.height;
 
-  if (!isProfileComplete && window.location.pathname !== '/complete-profile') {
-    return <Navigate to="/complete-profile" />;
+  if (!isProfileComplete && location.pathname !== '/complete-profile') {
+    return <Navigate to="/complete-profile" replace />;
   }
   
   return children;
 };
 
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return null;
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
+const NotFound = () => {
+  const { t } = useTranslation();
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center gap-4 bg-canvas text-ink">
+      <h1 className="text-2xl font-bold">{t('app.notFound')}</h1>
+      <Link className="underline" to="/dashboard">{t('app.backHome')}</Link>
+    </main>
+  );
+};
+
 const AppRoutes = () => {
+  const { isAuthenticated, loading } = useAuth();
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+      <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
       <Route 
         path="/complete-profile" 
         element={
@@ -62,6 +86,25 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <ChatPage />
+          </ProtectedRoute>
+        }
+      />
+      {['pregnancy', 'children', 'allergy', 'medications'].map((domain) => (
+        <Route
+          key={domain}
+          path={`/${domain}`}
+          element={
+            <ProtectedRoute>
+              <DomainPage domain={domain} />
+            </ProtectedRoute>
+          }
+        />
+      ))}
+      <Route
+        path="/emergency"
+        element={
+          <ProtectedRoute>
+            <EmergencyPage />
           </ProtectedRoute>
         }
       />
@@ -81,7 +124,17 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
-      <Route path="/" element={<Navigate to="/login" />} />
+      <Route
+        path="/"
+        element={
+          loading ? null : isAuthenticated ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

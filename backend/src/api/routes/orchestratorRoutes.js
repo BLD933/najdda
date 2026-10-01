@@ -4,6 +4,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const { runOrchestrator } = require('../../core/orchestrator/graph');
 const chatRepository = require('../../infra/repositories/ChatRepository');
 const { emergencyMiddleware, getEmergencyNumber } = require('../middlewares/emergencyMiddleware');
+const { detectReplyLanguage } = require('../../core/lib/language');
 
 router.post('/chat', authMiddleware, emergencyMiddleware, async (req, res) => {
   try {
@@ -22,10 +23,18 @@ router.post('/chat', authMiddleware, emergencyMiddleware, async (req, res) => {
       content: msg.content,
     }));
 
+    const calcAge = (dob) => {
+        if (!dob) return undefined;
+        const b = new Date(dob);
+        if (Number.isNaN(b.getTime())) return undefined;
+        const n = new Date();
+        let age = n.getFullYear() - b.getFullYear();
+        if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) age -= 1;
+        return age;
+      };
     const patientProfile = {
-      age: profile.age || profile.dateOfBirth
-        ? new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear()
-        : undefined,
+      replyLanguage: detectReplyLanguage(message, profile.preferredLanguage),
+      age: profile.age || calcAge(profile.dateOfBirth),
       gender: profile.gender,
       city: profile.city,
       country: profile.country,
@@ -58,7 +67,11 @@ router.post('/chat', authMiddleware, emergencyMiddleware, async (req, res) => {
     const result = await runOrchestrator(input);
 
     const finalText = result.finalResponse?.text || "I'm sorry, I couldn't process your request.";
-    const isEmergency = result.finalResponse?.isEmergency || false;
+    const isEmergency = Boolean(
+      result.finalResponse?.isEmergency ||
+      result.finalResponse?.severity === 'CRITICAL' ||
+      result.finalResponse?.status === 'danger'
+    );
     const followupTimeMinutes = result.finalResponse?.followupTimeMinutes || null;
     const followupMessage = result.finalResponse?.followupMessage || null;
     const options = result.finalResponse?.options || null;
@@ -88,15 +101,16 @@ router.post('/chat', authMiddleware, emergencyMiddleware, async (req, res) => {
       options,
     });
   } catch (error) {
-    console.error('Orchestrator route error:', error);
-    res.status(500).json({ message: error.message || 'Failed to process message via Orchestrator' });
+    if (process.env.NODE_ENV !== 'production') console.error('Orchestrator route error:', error.message);
+    res.status(500).json({ message: 'Failed to process message via Orchestrator' });
   }
 });
 
 router.get('/history', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const messages = await chatRepository.getMessages(userId, 'orchestrator', 50);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+    const messages = await chatRepository.getMessages(userId, 'orchestrator', limit);
     res.json({ messages });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch history' });

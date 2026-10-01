@@ -62,12 +62,12 @@ class ChatController {
         res.json(result);
       }
     } catch (error) {
-      console.error('Chat error:', error);
+      if (process.env.NODE_ENV !== 'production') console.error('Chat error:', error.message);
       if (res.headersSent) {
-        res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'error', message: 'Stream interrupted' })}\n\n`);
         res.end();
       } else {
-        res.status(500).json({ message: error.message || 'Failed to process message' });
+        res.status(500).json({ message: 'Failed to process message' });
       }
     }
   }
@@ -85,12 +85,14 @@ class ChatController {
   async analyzeImage(req, res) {
     try {
       const { imageBase64, message } = req.body;
-      if (!imageBase64) {
-        return res.status(400).json({ message: 'Image is required' });
+      const { validateBase64Field } = require('../middlewares/uploadValidation');
+      const v = validateBase64Field(imageBase64, { fieldName: 'imageBase64' });
+      if (v.error) {
+        return res.status(v.status || 400).json({ message: v.error });
       }
       
       const profile = req.user.profile || {};
-      const result = await visionService.analyze(imageBase64, message, profile);
+      const result = await visionService.analyze(v.clean, message, profile);
       if (result.isEmergency) result.emergencyNumber = getEmergencyNumber(profile.country);
       await chatPersistenceService.recordExchange({
         userId: req.user.id,
@@ -101,8 +103,8 @@ class ChatController {
       });
       res.json(result);
     } catch (error) {
-      console.error('Vision error:', error);
-      res.status(500).json({ message: error.message || 'Failed to analyze image' });
+      if (process.env.NODE_ENV !== 'production') console.error('Vision error:', error.message);
+      res.status(500).json({ message: 'Failed to analyze image' });
     }
   }
 }

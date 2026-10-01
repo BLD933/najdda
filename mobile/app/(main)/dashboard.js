@@ -122,8 +122,7 @@ export default function DashboardScreen() {
       }));
     }
     return [
-      { id: 1, name: 'Vitamin D Complex', sub: '10:30 AM • 1 Capsule' },
-      { id: 2, name: 'Annual Checkup', sub: 'Tomorrow • 09:00 AM' }
+      { id: 'coming-soon-meds', name: 'Aucun rappel — ajoutez vos médicaments dans Profil', sub: 'Coming soon' }
     ];
   };
 

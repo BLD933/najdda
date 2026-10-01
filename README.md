@@ -6,7 +6,7 @@ See **[NAjdda-README.md](./NAjdda-README.md)** for full documentation.
 
 ## Live Deployment
 
-**Web App:** [http://51.170.138.137](http://51.170.138.137)
+**Web App:** [https://VOTRE-DOMAINE (ne pas exposer de HTTP clair avec données santé ; ancien IP http://51.170.138.137 à décommissionner)](https://VOTRE-DOMAINE (ne pas exposer de HTTP clair avec données santé ; ancien IP http://51.170.138.137 à décommissionner))
 
 ## Quick Start
 

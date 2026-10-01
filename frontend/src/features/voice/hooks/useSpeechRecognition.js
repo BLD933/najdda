@@ -6,12 +6,26 @@ const LANG_MAP = {
   Arabic: 'ar-MA',
   'Moroccan Darija': 'ar-MA',
   Tamazight: 'ar-MA',
+  fr: 'fr-FR',
+  en: 'en-US',
+  ar: 'ar-MA',
+  ary: 'ar-MA',
+  tzm: 'ar-MA',
 };
 
 export function useSpeechRecognition({ onResult, lang = 'fr-FR' } = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef(null);
+
+  // `onResult` is a fresh arrow function on every parent render. Holding it in
+  // a ref keeps `start` stable, so the unmount-only cleanup below is not
+  // re-run mid-dictation — which used to stop recognition one frame after it
+  // started (setIsListening re-render → new `start` → old cleanup → stop()).
+  const onResultRef = useRef(onResult);
+  useEffect(() => {
+    onResultRef.current = onResult;
+  });
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -39,7 +53,9 @@ export function useSpeechRecognition({ onResult, lang = 'fr-FR' } = {}) {
       const transcript = Array.from(event.results)
         .map((r) => r[0].transcript)
         .join('');
-      if (onResult) onResult(transcript, event.results[event.results.length - 1].isFinal);
+      if (onResultRef.current) {
+        onResultRef.current(transcript, event.results[event.results.length - 1].isFinal);
+      }
     };
 
     recognition.onerror = () => {
@@ -55,7 +71,7 @@ export function useSpeechRecognition({ onResult, lang = 'fr-FR' } = {}) {
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
-  }, [lang, onResult]);
+  }, [lang]);
 
   useEffect(() => () => stop(), [stop]);
 

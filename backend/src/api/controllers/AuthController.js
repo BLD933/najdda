@@ -1,20 +1,67 @@
 const authService = require('../../core/services/AuthService');
 const authPresenter = require('../presenters/AuthPresenter');
 
+/**
+ * Error classification for the auth endpoints.
+ *
+ * A database outage used to reach the patient as 401 "connect ECONNREFUSED
+ * 127.0.0.1:5433": the wrong status (the password was fine) and a leak of the
+ * internal host and port. Someone whose database was down was told their
+ * credentials were invalid, retried, and had no way to tell an outage from a
+ * typo. Infrastructure failures are now 503 with a generic body; the detail
+ * stays in the server log.
+ */
+const DB_ERROR_CODES = new Set([
+  // Connection / transport
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH',
+  'ENETUNREACH', 'EPIPE',
+  // SQLSTATE class 08 — connection exception
+  '08000', '08001', '08003', '08004', '08006', '08007',
+  // SQLSTATE 57 — operator intervention (shutdown, too many connections)
+  '57014', '57P01', '57P02', '57P03',
+  // SQLSTATE 53 — insufficient resources
+  '53300',
+  // SQLSTATE 42P01 / 42703 — undefined table or column. A schema that was never
+  // applied is a deployment fault, not a bad request. This reached the client as
+  // "400 Registration failed" on a checkout where `npm run db:init` had not been
+  // run, which pointed the developer at their password instead of at the cause.
+  '42P01', '42703',
+]);
+
+const isInfrastructureError = (error) => {
+  if (!error) return false;
+  if (DB_ERROR_CODES.has(error.code)) return true;
+  const msg = String(error.message || '');
+  return /ECONNREFUSED|connection terminated|connect ETIMEDOUT|timeout exceeded|password authentication failed|database .* does not exist|too many connections|relation .* does not exist|column .* does not exist/i.test(msg);
+};
+
 class AuthController {
   async register(req, res) {
     try {
-      const { fullName, email, password } = req.body;
-      
+      let { fullName, email, password } = req.body;
+      email = typeof email === 'string' ? email.trim().toLowerCase() : '';
       if (!fullName || !email || !password) {
         return res.status(400).json({ message: 'Please provide all fields' });
       }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ message: 'Invalid email format' });
+      }
+      if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+        return res.status(400).json({ message: 'Password must be 8-128 characters' });
+      }
 
       const { user, token } = await authService.register({ fullName, email, password });
-      
       res.status(201).json(authPresenter.toAuthResponse(user, token));
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      if (isInfrastructureError(error)) {
+        console.error('[auth] register infrastructure failure:', error.message);
+        return res.status(503).json({ message: 'Service temporarily unavailable' });
+      }
+      if (error.code === '23505' || /already exists/i.test(error.message)) {
+        return res.status(409).json({ message: 'An account with this email already exists' });
+      }
+      if (process.env.NODE_ENV !== 'production') console.error('[auth] register:', error.message);
+      res.status(400).json({ message: 'Registration failed' });
     }
   }
 
@@ -27,23 +74,26 @@ class AuthController {
       }
 
       const { user, token } = await authService.login({ email, password });
-      
       res.status(200).json(authPresenter.toAuthResponse(user, token));
     } catch (error) {
-      console.error('Login error:', error);
-      res.status(401).json({ message: error.message });
+      if (isInfrastructureError(error)) {
+        // Not 401: the credentials were never checked. Telling the patient
+        // their password is wrong sends them into a retry loop against an
+        // outage they cannot fix.
+        console.error('[auth] login infrastructure failure:', error.message);
+        return res.status(503).json({ message: 'Service temporarily unavailable' });
+      }
+      if (process.env.NODE_ENV !== 'production') console.error('[auth] login:', error.message);
+      // Same body for "no such user" and "wrong password" — anything else is
+      // an account-enumeration oracle.
+      res.status(401).json({ message: 'Invalid email or password' });
     }
   }
 
   async getMe(req, res) {
-    try {
-      res.status(200).json({ 
-        user: authPresenter.toPublicUser(req.user) 
-      });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
+    res.status(200).json({ user: authPresenter.toPublicUser(req.user) });
   }
 }
 
 module.exports = new AuthController();
+module.exports.isInfrastructureError = isInfrastructureError;

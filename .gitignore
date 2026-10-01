@@ -45,3 +45,23 @@ web-build/
 # Build output
 dist/
 build/
+# Expo prebuild natif (régénérable via prebuild/EAS)
+mobile/android/
+mobile/ios/
+*.keystore
+*.ipa
+*.xcworkspace
+Pods/
+DerivedData/
+local.properties
+.gradle/
+coverage/
+*.log
+frontend/dist/
+mobile/web-build/
+.pglite/
+
+# Local debug artefacts
+frontend/previews/
+.playwright-mcp/
+opencode.json

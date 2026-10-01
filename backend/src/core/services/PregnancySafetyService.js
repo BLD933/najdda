@@ -74,7 +74,13 @@ class PregnancySafetyService {
       throw new Error('trimester is required and must be "1", "2", or "3"');
     }
 
-    const symptomList = Array.isArray(symptoms) ? symptoms.filter((s) => s && String(s).trim()) : [];
+    // `symptoms` arrives as an array from the mobile client and as a plain
+    // string from the web form. Only the array shape was handled, so every web
+    // consultation was rejected with "provide at least one symptom" while the
+    // patient had typed one. Accept both.
+    const symptomList = Array.isArray(symptoms)
+      ? symptoms.filter((s) => s && String(s).trim())
+      : (symptoms && String(symptoms).trim() ? [String(symptoms).trim()] : []);
     const med = medication ? String(medication).trim() : '';
     const fd = food ? String(food).trim() : '';
 

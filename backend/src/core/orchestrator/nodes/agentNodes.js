@@ -92,15 +92,23 @@ async function pregnancyNode(state) {
 }
 
 async function pediatricNode(state) {
-  const { patientProfile, userMessage } = state;
+  const { patientProfile, userMessage, messages } = state;
   try {
     const childProfile = patientProfile.child || {};
+    const convHistory = (messages || []).slice(-6).map((m) => ({
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+    }));
+    const toPositiveNum = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    };
     const result = await childSafetyService.analyze({
       message: userMessage,
-      history: [],
+      history: convHistory,
       childProfile: {
-        age_months: childProfile.ageMonths,
-        weight_kg: childProfile.weightKg,
+        age_months: toPositiveNum(childProfile.ageMonths),
+        weight_kg: toPositiveNum(childProfile.weightKg),
       },
       medication: patientProfile.currentMedication || '',
     });
@@ -134,9 +142,9 @@ async function pharmacyNode(state) {
         : [patientProfile.medications])
       : [];
 
-    const history = messages.map((m) => ({
+    const history = (messages || []).slice(-6).map((m) => ({
       role: m.role,
-      text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
     }));
 
     const result = await drugSafetyService.checkInteraction({
@@ -170,13 +178,17 @@ async function pharmacyNode(state) {
 }
 
 async function allergyNode(state) {
-  const { patientProfile, userMessage } = state;
+  const { patientProfile, userMessage, messages } = state;
   try {
     const city = patientProfile.city || 'Casablanca';
+    const convHistory = (messages || []).slice(-6).map((m) => ({
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+    }));
     const result = await allergyAnalyzerService.check({
       symptoms: [userMessage],
       message: userMessage,
-      history: [],
+      history: convHistory,
       city,
       profile: patientProfile,
     });
@@ -207,11 +219,12 @@ async function allergyNode(state) {
 async function locatorNode(state) {
   const { patientProfile, userMessage } = state;
   try {
+    const isEmergency = /urgent|emergency|chest pain|bleeding|unconscious|douleur thoracique|urgence|نزيف|طوارئ/i.test(userMessage || '');
     const result = await locatorAgent.locate(
-      'routine',
+      isEmergency ? 'emergency' : 'routine',
       userMessage,
       patientProfile.city || patientProfile.country || 'Morocco',
-      'general'
+      isEmergency ? 'emergency' : 'general'
     );
     return {
       subAgentResponses: {

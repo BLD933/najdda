@@ -1,7 +1,12 @@
 const triageAgent = require('./agents/TriageAgent');
 const chatRepository = require('../../infra/repositories/ChatRepository');
+const { detectReplyLanguage } = require('../lib/language');
 
 class ChatService {
+  withReplyLanguage(message, profile = {}) {
+    return { ...profile, replyLanguage: detectReplyLanguage(message, profile.preferredLanguage) };
+  }
+
   async getConversation(userId) {
     const messages = await chatRepository.getMessages(userId, 'triage');
     return messages.map((message) => ({ role: message.role, content: message.content }));
@@ -10,7 +15,7 @@ class ChatService {
   async sendMessage(userId, message, profile = {}) {
     const history = await this.getConversation(userId);
     history.push({ role: 'user', content: message });
-    const reply = await triageAgent.assess(history, profile);
+    const reply = await triageAgent.assess(history, this.withReplyLanguage(message, profile));
     const severity = triageAgent.getSeverity(reply);
     return { reply, severity };
   }
@@ -18,9 +23,10 @@ class ChatService {
   async *sendMessageStream(userId, message, profile = {}) {
     const history = await this.getConversation(userId);
     history.push({ role: 'user', content: message });
+    const localized = this.withReplyLanguage(message, profile);
 
     let fullContent = '';
-    for await (const chunk of triageAgent.streamAssess(history, profile)) {
+    for await (const chunk of triageAgent.streamAssess(history, localized)) {
       if (typeof chunk === 'string') {
         fullContent += chunk;
         yield { type: 'token', content: chunk };

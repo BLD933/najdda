@@ -1,28 +1,40 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, Mail, Lock, Loader2 } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { LogIn, Mail, Lock, Loader2, WifiOff } from 'lucide-react';
 import { useTranslation } from '../../i18n/I18nContext';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, loading, error } = useAuth();
+  const { login, loading, error, clearError } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // A dead backend and a rejected password are different problems with
+  // different fixes. "Invalid email or password" while the API is unreachable
+  // sends the patient into a password-reset loop that cannot possibly work.
+  // `error` is null until a request fails, hence the explicit guard.
+  const unreachable = !!error && !error.response && (error.code === 'ECONNABORTED' || !error.message);
+  const serviceDown = !!error && error.response?.status === 503;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await login({ email, password });
-      navigate('/dashboard');
-    } catch (err) {
+      // Return the patient to wherever the guard interrupted them. The guard
+      // stashes the path in `state.from` and nothing read it, so a deep link
+      // to /chat or /emergency always dropped the patient on the dashboard.
+      const from = location.state?.from;
+      navigate(from && from !== '/login' ? from : '/dashboard', { replace: true });
+    } catch {
       // Error handled by context
     }
   };
 
   return (
-    <div className="w-full max-w-md rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+    <div>
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold tracking-tight">{t('login.title')}</h1>
         <p className="mt-2 text-ink-muted">{t('login.subtitle')}</p>
@@ -30,9 +42,17 @@ const LoginForm = () => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div aria-live="polite">
-          {error && (
-            <div className="mb-4 rounded-ui-sm border border-emergency/40 bg-emergency-subtle p-3 text-sm text-on-emergency-subtle">
-              {error}
+          {(unreachable || serviceDown) && (
+            <div className="glass mb-4 rounded-ui-sm border-warning/50 p-4 text-sm text-on-warning-subtle">
+              <p className="flex items-center gap-2 font-bold">
+                <WifiOff size={16} aria-hidden="true" /> {t('login.serviceDown')}
+              </p>
+              <p className="mt-1">{t('login.serviceDownHelp')}</p>
+            </div>
+          )}
+          {error && !unreachable && !serviceDown && (
+            <div className="glass mb-4 rounded-ui-sm border-emergency/50 p-3 text-sm text-on-emergency-subtle">
+              {error.message || t('login.failed')}
             </div>
           )}
         </div>
@@ -40,7 +60,7 @@ const LoginForm = () => {
         <div>
           <label htmlFor="email" className="mb-1 block text-sm font-medium text-ink-muted">{t('login.email')}</label>
           <div className="relative">
-            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-ink-subtle">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3 text-ink-subtle">
               <Mail size={18} />
             </div>
             <input
@@ -50,8 +70,8 @@ const LoginForm = () => {
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="block w-full rounded-ui-sm border border-line-strong bg-canvas py-2 pl-10 pr-3 text-ink transition-colors placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none"
+              onChange={(e) => { clearError(); setEmail(e.target.value); }}
+              className="block w-full rounded-ui-sm border border-line-strong bg-surface/70 py-2 ps-10 pe-3 text-ink backdrop-blur-xl transition-all placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none"
               placeholder={t('login.emailPlaceholder')}
             />
           </div>
@@ -60,7 +80,7 @@ const LoginForm = () => {
         <div>
           <label htmlFor="password" className="mb-1 block text-sm font-medium text-ink-muted">{t('login.password')}</label>
           <div className="relative">
-            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-ink-subtle">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3 text-ink-subtle">
               <Lock size={18} />
             </div>
             <input
@@ -70,8 +90,8 @@ const LoginForm = () => {
               autoComplete="current-password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="block w-full rounded-ui-sm border border-line-strong bg-canvas py-2 pl-10 pr-3 text-ink transition-colors placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none"
+              onChange={(e) => { clearError(); setPassword(e.target.value); }}
+              className="block w-full rounded-ui-sm border border-line-strong bg-surface/70 py-2 ps-10 pe-3 text-ink backdrop-blur-xl transition-all placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none"
               placeholder={t('login.passwordPlaceholder')}
             />
           </div>
@@ -80,12 +100,12 @@ const LoginForm = () => {
         <button
           type="submit"
           disabled={loading}
-          className="flex w-full items-center justify-center rounded-ui-sm bg-primary px-4 py-3 font-bold text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50"
+          className="brand-gradient flex w-full items-center justify-center rounded-ui-sm px-4 py-3 font-bold text-white shadow-card-hover transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
         >
           {loading ? (
-            <Loader2 className="mr-2 animate-spin" size={20} aria-hidden="true" />
+            <Loader2 className="me-2 animate-spin" size={20} aria-hidden="true" />
           ) : (
-            <LogIn className="mr-2" size={20} aria-hidden="true" />
+            <LogIn className="me-2" size={20} aria-hidden="true" />
           )}
           {loading ? t('login.submitting') : t('login.submit')}
         </button>

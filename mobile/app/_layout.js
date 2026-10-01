@@ -59,6 +59,15 @@ function PushNotificationRegistration() {
       handleNotification: async () => ({ shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: false }),
     });
 
+    // Canal Android obligatoire sinon alertes silencieuses
+    if (require('react-native').Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('emergency', {
+        name: 'Emergency',
+        importance: Notifications.AndroidImportance.MAX,
+        sound: 'default',
+      }).catch(() => {});
+    }
+
     // Register fall detection notification category (buttons on lock screen)
     registerFallNotificationCategory().catch(console.error);
 

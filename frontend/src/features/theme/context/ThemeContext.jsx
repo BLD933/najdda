@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { readStore, writeStore } from '../../../utils/storage';
 
 const STORAGE_KEY = 'najdda-theme';
 const ThemeContext = createContext();
@@ -9,7 +10,7 @@ const systemDark = () => window.matchMedia('(prefers-color-scheme: dark)').match
 // this only keeps the class in sync afterwards, and tracks the OS while the
 // preference is 'system'.
 export const ThemeProvider = ({ children }) => {
-  const [theme, setThemeState] = useState(() => localStorage.getItem(STORAGE_KEY) || 'system');
+  const [theme, setThemeState] = useState(() => readStore(STORAGE_KEY) || 'system');
 
   const apply = useCallback((value) => {
     const dark = value === 'dark' || (value === 'system' && systemDark());
@@ -27,7 +28,7 @@ export const ThemeProvider = ({ children }) => {
 
   const setTheme = useCallback((value) => {
     setThemeState(value);
-    localStorage.setItem(STORAGE_KEY, value);
+    writeStore(STORAGE_KEY, value);
   }, []);
 
   const resolved = theme === 'system' ? (systemDark() ? 'dark' : 'light') : theme;

@@ -21,8 +21,17 @@ class ProfileController {
         medications, preferredHospital, latitude, longitude
       } = req.body;
 
-      // Strict Validation
-      console.log('Incoming profile data:', req.body); // Debug log
+      // Strict Validation (sans log PII)
+      const toNum = (v, min, max) => {
+        if (v === '' || v === null || v === undefined) return null;
+        const n = Number(v);
+        if (!Number.isFinite(n)) return null;
+        if (min !== undefined && n < min) return null;
+        if (max !== undefined && n > max) return null;
+        return n;
+      };
+      const toLat = (v) => toNum(v, -90, 90);
+      const toLng = (v) => toNum(v, -180, 180);
 
       const missingFields = [];
       if (!phoneNumber) missingFields.push('phoneNumber');
@@ -51,8 +60,8 @@ class ProfileController {
         city: city || '',
         country: country || 'Morocco',
         preferred_language: preferredLanguage || 'Arabic',
-        weight: weight ? parseInt(weight) : null,
-        height: height ? parseInt(height) : null,
+        weight: toNum(weight, 20, 300),
+        height: toNum(height, 50, 250),
         is_pregnant: isPregnant === true,
         drug_allergies: Array.isArray(drugAllergies) ? drugAllergies.join(', ') : (drugAllergies || 'None'),
         food_allergies: Array.isArray(foodAllergies) ? foodAllergies.join(', ') : (foodAllergies || 'None'),
@@ -60,11 +69,11 @@ class ProfileController {
         alcohol_status: alcoholStatus || 'Never',
         insurance_type: insuranceType || 'None',
         chronic_diseases: Array.isArray(chronicDiseases) ? chronicDiseases.join(', ') : (chronicDiseases || 'None'),
-        medications: JSON.stringify(medications || []),
+        medications: Array.isArray(medications) ? medications : [],
         preferred_hospital: preferredHospital || '',
-        latitude: latitude ? parseFloat(latitude) : null,
-        longitude: longitude ? parseFloat(longitude) : null,
-        emergency_contacts: JSON.stringify(emergencyContacts || [])
+        latitude: toLat(latitude),
+        longitude: toLng(longitude),
+        emergency_contacts: Array.isArray(emergencyContacts) ? emergencyContacts : []
       });
       
       const userWithProfile = { ...req.user, profile: updatedProfile };
