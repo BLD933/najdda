@@ -20,6 +20,19 @@ const URL = `http://127.0.0.1:${PORT}/emergency-alert`;
 const API = `http://127.0.0.1:${API_PORT}`;
 const SECRET = 'e2e-secret';
 
+// server.js exits fatally without a 32-char JWT_SECRET, and the repository
+// ignores .env, so CI starts with nothing in the environment. The test has to
+// supply everything it needs rather than inherit the developer's .env.
+const TEST_ENV = {
+  JWT_SECRET: 'n8n-e2e-test-secret-0123456789abcdef',
+  N8N_EMERGENCY_WEBHOOK_URL: URL,
+  N8N_WEBHOOK_SECRET: SECRET,
+  PORT: String(API_PORT),
+  LLM_MOCK: 'true',
+  USE_PGLITE: 'true',
+  NODE_ENV: 'test',
+};
+
 let failures = 0;
 const check = (label, ok, detail) => {
   if (ok) console.log(`OK   ${label}`);
@@ -51,33 +64,32 @@ async function makePatient(name) {
   const receiver = spawn(
     process.execPath,
     [path.join(__dirname, 'webhook_receiver.js'), String(PORT)],
-    { env: { ...process.env, N8N_WEBHOOK_SECRET: SECRET }, stdio: 'ignore' },
+    { env: { ...process.env, ...TEST_ENV }, stdio: 'ignore' },
   );
 
   const api = spawn(
     process.execPath,
     [path.join(__dirname, '..', 'src', 'server.js')],
-    {
-      env: {
-        ...process.env,
-        N8N_EMERGENCY_WEBHOOK_URL: URL,
-        N8N_WEBHOOK_SECRET: SECRET,
-        PORT: String(API_PORT),
-        LLM_MOCK: 'true',
-        USE_PGLITE: 'true',
-      },
-      stdio: 'ignore',
-    },
+    { env: { ...process.env, ...TEST_ENV }, stdio: 'ignore' },
   );
 
   process.on('exit', () => { receiver.kill(); api.kill(); });
 
+  // Wait for the API. A failed fetch here means the server is not up, which is
+  // a test failure to report — not a reason to abort the process with an
+  // unhandled ECONNREFUSED that masks which test actually broke.
+  let up = false;
   for (let i = 0; i < 50; i += 1) {
     try {
       const h = await fetch(`${API}/api/health`);
-      if (h.ok) break;
+      if (h.ok) { up = true; break; }
     } catch { /* not listening yet */ }
     await sleep(300);
+  }
+  if (!up) {
+    console.log('FAIL le serveur de test n\'a pas démarré — JWT_SECRET ou USE_PGLITE manquant ?');
+    api.kill(); receiver.kill();
+    process.exit(1);
   }
   await sleep(700);
 
