@@ -12,16 +12,27 @@ const authPresenter = require('../presenters/AuthPresenter');
  * stays in the server log.
  */
 const DB_ERROR_CODES = new Set([
+  // Connection / transport
   'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH',
-  'ENETUNREACH', 'EPIPE', '57P01', '57P02', '57P03', '08000', '08003', '08006',
-  '08001', '08004', '53300', '08000',
+  'ENETUNREACH', 'EPIPE',
+  // SQLSTATE class 08 — connection exception
+  '08000', '08001', '08003', '08004', '08006', '08007',
+  // SQLSTATE 57 — operator intervention (shutdown, too many connections)
+  '57014', '57P01', '57P02', '57P03',
+  // SQLSTATE 53 — insufficient resources
+  '53300',
+  // SQLSTATE 42P01 / 42703 — undefined table or column. A schema that was never
+  // applied is a deployment fault, not a bad request. This reached the client as
+  // "400 Registration failed" on a checkout where `npm run db:init` had not been
+  // run, which pointed the developer at their password instead of at the cause.
+  '42P01', '42703',
 ]);
 
 const isInfrastructureError = (error) => {
   if (!error) return false;
   if (DB_ERROR_CODES.has(error.code)) return true;
   const msg = String(error.message || '');
-  return /ECONNREFUSED|connection terminated|connect ETIMEDOUT|timeout exceeded|password authentication failed|database .* does not exist|too many connections/i.test(msg);
+  return /ECONNREFUSED|connection terminated|connect ETIMEDOUT|timeout exceeded|password authentication failed|database .* does not exist|too many connections|relation .* does not exist|column .* does not exist/i.test(msg);
 };
 
 class AuthController {

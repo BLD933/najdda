@@ -93,6 +93,19 @@ async function makePatient(name) {
   }
   await sleep(700);
 
+  // A schema that was never applied makes every database call fail, and the
+  // symptom — a 401 on login — reads like a credentials problem rather than a
+  // missing `npm run db:init`. Say which one it is.
+  const { json: probe } = await post(`${API}/api/auth/login`, {
+    email: 'schema-probe@test.ma',
+    password: 'motdepasse123',
+  });
+  if (/503|temporarily unavailable/i.test(probe.message || '')) {
+    console.log('FAIL le schéma de la base est absent — lance `npm run db:init` avant ce test');
+    api.kill(); receiver.kill();
+    process.exit(1);
+  }
+
   // ── Setup: a patient the middleware can attach a profile to ──────────────
   const token = await makePatient('alert');
   check('auth works against the embedded DB', Boolean(token));
