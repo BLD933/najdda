@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/context/AuthContext';
 import profileService from '../features/auth/services/profileService';
 import {
-  ArrowLeft, Save, User, Phone, Droplets,
+  ArrowLeft, Save, User, Phone, Droplets, X,
   Activity, Loader2, CheckCircle2, AlertCircle, Volume2
 } from 'lucide-react';
+import DirIcon from '../components/ui/dir-icon';
 import ThemeToggle from '../features/theme/components/ThemeToggle';
 import LanguageSwitcher from '../features/i18n/LanguageSwitcher';
 import { useTranslation } from '../features/i18n/I18nContext';
 import { tValue, isEmptyValue } from '../features/i18n/valueLabels';
+import { readStore, writeStore } from '../utils/storage';
 
 const SettingsPage = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -20,11 +22,16 @@ const SettingsPage = () => {
   const [constants, setConstants] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const successTimer = useRef(null);
+
+  useEffect(() => () => {
+    if (successTimer.current) clearTimeout(successTimer.current);
+  }, []);
 
   const [medicationSearch, setMedicationSearch] = useState('');
   const [medicationResults, setMedicationResults] = useState([]);
   const [searchingMed, setSearchingMed] = useState(false);
-  const [readAloud, setReadAloud] = useState(() => localStorage.getItem('najdda-tts-enabled') === 'true');
+  const [readAloud, setReadAloud] = useState(() => readStore('najdda-tts-enabled') === 'true');
 
   const [formData, setFormData] = useState({
     phoneNumber: '',
@@ -55,19 +62,29 @@ const SettingsPage = () => {
         setConstants(consts);
 
         if (user?.profile) {
+          const splitList = (v, fallback) => {
+            if (Array.isArray(v)) return v.length > 0 ? v : fallback;
+            if (typeof v === 'string' && v.trim() !== '') {
+              return v.split(',').map((p) => p.trim()).filter((p) => p !== '');
+            }
+            return fallback;
+          };
+          const dob = user.profile.dateOfBirth
+            ? String(user.profile.dateOfBirth).slice(0, 10)
+            : '';
           setFormData({
             phoneNumber: user.profile.phoneNumber || '',
-            dateOfBirth: user.profile.dateOfBirth?.split('T')[0] || '',
+            dateOfBirth: dob,
             gender: user.profile.gender || '',
             bloodType: user.profile.bloodType || '',
             country: user.profile.country || 'Morocco',
             city: user.profile.city || '',
             preferredLanguage: user.profile.preferredLanguage || 'Arabic',
-            weight: user.profile.weight || '',
-            height: user.profile.height || '',
+            weight: user.profile.weight ?? '',
+            height: user.profile.height ?? '',
             isPregnant: user.profile.isPregnant || false,
-            drugAllergies: user.profile.drugAllergies?.split(', ') || ['None'],
-            foodAllergies: user.profile.foodAllergies?.split(', ') || ['None'],
+            drugAllergies: splitList(user.profile.drugAllergies, ['None']),
+            foodAllergies: splitList(user.profile.foodAllergies, ['None']),
             smokingStatus: user.profile.smokingStatus || 'Non-smoker',
             alcoholStatus: user.profile.alcoholStatus || 'Never',
             insuranceType: user.profile.insuranceType || 'None / Self-Pay',
@@ -77,10 +94,21 @@ const SettingsPage = () => {
             // healthy profile instead of leaving every chip unchecked.
             chronicDiseases: (isEmptyValue(user.profile.chronicDiseases)
               ? ['None (Healthy)']
-              : user.profile.chronicDiseases.split(', ')),
+              : splitList(user.profile.chronicDiseases, ['None (Healthy)'])),
             medications: user.profile.medications || [],
             preferredHospital: user.profile.preferredHospital || '',
-            emergencyContacts: user.profile.emergencyContacts || [{ name: '', relationship: '', phone: '' }]
+            // Carried, not edited. The backend writes latitude/longitude
+            // unconditionally on every PUT, so omitting them here wiped the
+            // patient's GPS on every settings save — breaking the locator
+            // agent, the n8n webhook and the Maps link on the SOS page.
+            latitude: user.profile.latitude ?? null,
+            longitude: user.profile.longitude ?? null,
+            // `[]` is truthy, so `|| fallback` never fired for a patient with no
+            // contacts yet — the section rendered nothing and there was no field
+            // to type into. Default to one empty row instead.
+            emergencyContacts: (Array.isArray(user.profile.emergencyContacts) && user.profile.emergencyContacts.length > 0)
+              ? user.profile.emergencyContacts
+              : [{ name: '', relationship: '', phone: '' }]
           });
         }
       } catch (err) {
@@ -90,7 +118,14 @@ const SettingsPage = () => {
       }
     };
     fetchData();
-  }, [user, t]);
+    // `t` is deliberately NOT a dependency: it is a useCallback on `lang`, so
+    // switching FR→AR recreated it and this effect re-ran, re-fetching the
+    // constants and overwriting the form with server values — every unsaved
+    // edit was lost. Same effect fired after each refreshUser() (i.e. after
+    // every save). Constants are locale-independent; the form must reset only
+    // when the profile itself changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Reuse logic from wizard
   const handleChange = (e) => {
@@ -136,9 +171,16 @@ const SettingsPage = () => {
   const addContact = () => {
     setFormData(prev => ({
       ...prev,
-      emergencyContacts: [...prev.emergencyContacts, { name: '', relationship: '', phone: '' }]
+      emergencyContacts: [
+        ...prev.emergencyContacts,
+        { name: '', relationship: '', phone: '', __key: `c${Date.now()}` },
+      ],
     }));
   };
+
+  // Stable per-row id — see CompleteProfilePage. Rows are appended, never
+  // reordered, but the key keeps React from reusing DOM between saves.
+  const contactKey = (c, i) => c.__key ?? `c${i}`;
 
   // Medication logic
   useEffect(() => {
@@ -149,7 +191,7 @@ const SettingsPage = () => {
     const timeout = setTimeout(async () => {
       setSearchingMed(true);
       try {
-        const res = await fetch(`https://medicament-api.vercel.app/api/medicaments/search?keyword=${medicationSearch}`);
+        const res = await fetch(`https://medicament-api.vercel.app/api/medicaments/search?keyword=${encodeURIComponent(medicationSearch)}`);
         const data = await res.json();
         setMedicationResults(Array.isArray(data) ? data.slice(0, 5) : []);
       } catch (err) { console.error(err); } finally { setSearchingMed(false); }
@@ -171,14 +213,23 @@ const SettingsPage = () => {
     setSaving(true);
     setError('');
     try {
+      const toNum = (v) => {
+        if (v === '' || v === null || v === undefined) return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
       const payload = {
         ...formData,
-        weight: parseInt(formData.weight),
-        height: parseInt(formData.height)
+        weight: toNum(formData.weight),
+        height: toNum(formData.height)
       };
+      // `__key` is a client-only React key; the profiles table has no such column.
+      payload.emergencyContacts = (payload.emergencyContacts || []).map(({ __key, ...c }) => c);
       await profileService.updateProfile(payload);
+      try { await refreshUser?.(); } catch {}
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      if (successTimer.current) clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(err.response?.data?.message || t('settings.error.update'));
     } finally {
@@ -199,14 +250,15 @@ const SettingsPage = () => {
   // ring on keyboard focus; a bare `focus:outline-none` outranks it and left a
   // 1px border-colour change as the only focus cue, which 2.4.11 rejects.
   const field =
-    'w-full rounded-ui-sm border border-line-strong bg-surface px-3 py-3 text-ink transition-colors placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none';
+    'w-full rounded-ui-sm border border-line-strong bg-surface/70 px-3 py-3 text-ink backdrop-blur-xl transition-all placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none';
   const label = 'text-sm font-medium text-ink-muted';
 
   return (
     <div className="min-h-screen bg-canvas">
-      <nav className="sticky top-0 z-sticky flex items-center gap-4 border-b border-line bg-surface px-6 py-4">
+      <div aria-hidden="true" className="aurora" />
+      <nav className="glass-nav sticky top-0 z-sticky flex items-center gap-4 px-6 py-4">
         <button onClick={() => navigate('/dashboard')} className="rounded-full p-2 text-ink-muted transition-colors hover:bg-surface-3 hover:text-ink" aria-label={t('wizard.backToDashboard')}>
-          <ArrowLeft size={20} aria-hidden="true" />
+          <DirIcon name={ArrowLeft} size={20} aria-hidden="true" />
         </button>
         <h1 className="flex-1 text-xl font-bold">{t('settings.title')}</h1>
         <LanguageSwitcher />
@@ -218,13 +270,13 @@ const SettingsPage = () => {
       <form onSubmit={handleSubmit} className="mx-auto max-w-4xl space-y-8 px-6 pb-32 pt-6">
         <div aria-live="polite">
           {success && (
-            <div className="mb-6 flex items-center gap-3 rounded-ui-md border border-success/40 bg-success-subtle p-4 text-on-success-subtle">
+            <div className="glass mb-6 flex items-center gap-3 rounded-ui-md border-success/50 p-4 text-on-success-subtle">
               <CheckCircle2 size={20} aria-hidden="true" />
               <span className="font-medium">{t('settings.saved')}</span>
             </div>
           )}
           {error && (
-            <div className="mb-6 flex items-center gap-3 rounded-ui-md border border-emergency/40 bg-emergency-subtle p-4 text-on-emergency-subtle">
+            <div className="glass mb-6 flex items-center gap-3 rounded-ui-md border-emergency/50 p-4 text-on-emergency-subtle">
               <AlertCircle size={20} aria-hidden="true" />
               <span className="font-medium">{error}</span>
             </div>
@@ -232,12 +284,15 @@ const SettingsPage = () => {
         </div>
 
         {/* SECTION: Identity */}
-        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+        <section className="glass space-y-6 rounded-ui-lg p-8">
           <h2 className="flex items-center gap-2 text-lg font-bold"><User className="text-primary" size={20} aria-hidden="true" /> {t('settings.identity.heading')}</h2>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <label htmlFor="fullName" className={label}>{t('settings.identity.fullName')}</label>
-              <input id="fullName" disabled value={user?.fullName} readOnly className={`${field} cursor-not-allowed bg-surface-2 text-ink-subtle`} />
+              {/* readOnly, not disabled: `disabled` drops the field out of the
+                  tab order and makes it inert to assistive tech, so a patient
+                  could not even have their own name read back to them. */}
+              <input id="fullName" value={user?.fullName || ''} readOnly aria-readonly="true" className={`${field} cursor-not-allowed bg-surface-2 text-ink-subtle`} />
             </div>
             <div className="space-y-2">
               <label htmlFor="phoneNumber" className={label}>{t('settings.identity.phone')}</label>
@@ -246,7 +301,7 @@ const SettingsPage = () => {
             <div className="space-y-2">
               <label htmlFor="country" className={label}>{t('settings.identity.country')}</label>
               <select id="country" name="country" value={formData.country} onChange={handleChange} className={field}>
-                {constants?.geography.COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {(constants?.geography.COUNTRIES || []).map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -271,10 +326,10 @@ const SettingsPage = () => {
         </section>
 
         {/* SECTION: Medical Conditions */}
-        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+        <section className="glass space-y-6 rounded-ui-lg p-8">
           <h2 className="flex items-center gap-2 text-lg font-bold"><Activity className="text-primary" size={20} aria-hidden="true" /> {t('settings.conditions.heading')}</h2>
           <div role="group" aria-label={t('settings.conditions.group')} className="flex flex-wrap gap-2">
-            {constants?.medical.CHRONIC_CONDITIONS.map(c => {
+            {(constants?.medical.CHRONIC_CONDITIONS || []).map(c => {
               const selected = formData.chronicDiseases.includes(c);
               return (
                 <button
@@ -297,7 +352,7 @@ const SettingsPage = () => {
         </section>
 
         {/* SECTION: Pharmacy */}
-        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+        <section className="glass space-y-6 rounded-ui-lg p-8">
           <h2 className="flex items-center gap-2 text-lg font-bold"><Droplets className="text-primary" size={20} aria-hidden="true" /> {t('settings.meds.heading')}</h2>
           <div className="relative">
             <label htmlFor="medication-search" className="sr-only">{t('settings.meds.searchLabel')}</label>
@@ -312,7 +367,7 @@ const SettingsPage = () => {
               aria-controls="medication-results"
               aria-autocomplete="list"
             />
-            {searchingMed && <Loader2 className="absolute right-3 top-3 animate-spin text-primary" aria-hidden="true" />}
+            {searchingMed && <Loader2 className="absolute end-3 top-3 animate-spin text-primary" aria-hidden="true" />}
             {medicationResults.length > 0 && (
               <div id="medication-results" role="listbox" className="absolute z-dropdown mt-2 w-full overflow-hidden rounded-ui-sm border border-line bg-surface shadow-elevated">
                 {medicationResults.map(m => (
@@ -353,7 +408,7 @@ const SettingsPage = () => {
         </section>
 
         {/* SECTION: Voice & Accessibility */}
-        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+        <section className="glass space-y-6 rounded-ui-lg p-8">
           <h2 className="flex items-center gap-2 text-lg font-bold"><Volume2 className="text-primary" size={20} aria-hidden="true" /> {t('settings.voice.heading')}</h2>
           <div className="flex items-center justify-between">
             <div>
@@ -367,18 +422,21 @@ const SettingsPage = () => {
               onClick={() => {
                 const next = !readAloud;
                 setReadAloud(next);
-                localStorage.setItem('najdda-tts-enabled', next ? 'true' : 'false');
+                writeStore('najdda-tts-enabled', next ? 'true' : 'false');
               }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${readAloud ? 'bg-primary' : 'bg-surface-3'}`}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${readAloud ? 'translate-x-6' : 'translate-x-1'}`} />
+              {/* The knob slides toward the "on" side, which is the END edge in
+                  RTL — `translate-x-*` is physical, so it pushed the thumb out
+                  of the track in Arabic/Darija. */}
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${readAloud ? 'translate-x-6 rtl:-translate-x-6' : 'translate-x-1'}`} />
             </button>
           </div>
           <p className="text-xs text-ink-muted italic">{t('settings.voice.audioDisclaimer')}</p>
         </section>
 
         {/* SECTION: Emergency */}
-        <section className="space-y-6 rounded-ui-lg border border-line bg-surface p-8 shadow-card">
+        <section className="glass space-y-6 rounded-ui-lg p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 text-lg font-bold"><Phone className="text-emergency" size={20} aria-hidden="true" /> {t('settings.emergency.heading')}</h2>
             <button type="button" onClick={addContact} className="rounded-ui-sm px-2 py-1 text-sm font-bold text-primary transition-colors hover:bg-primary-subtle">
@@ -387,26 +445,47 @@ const SettingsPage = () => {
           </div>
           <div className="space-y-4">
             {formData.emergencyContacts.map((c, i) => (
-              <div key={i} className="grid grid-cols-1 gap-4 rounded-ui-md border border-line bg-surface-2 p-4 md:grid-cols-3">
+              <div key={contactKey(c, i)} className="space-y-3 rounded-ui-md border border-line bg-surface-2 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-ink-subtle">{t('contacts.row', { n: i + 1 })}</span>
+                  {/* The wizard had this button, Settings did not: once a wrong
+                      contact was added here the only way to remove it was to
+                      walk back through the 5-step passport. */}
+                  {formData.emergencyContacts.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({
+                        ...prev,
+                        emergencyContacts: prev.emergencyContacts.filter((_, idx) => idx !== i),
+                      }))}
+                      className="rounded-ui-sm p-1 text-ink-muted transition-colors hover:bg-emergency-subtle hover:text-emergency"
+                      aria-label={t('contacts.removeOne', { n: i + 1 })}
+                    >
+                      <X size={16} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <input aria-label={t('contacts.nameOf', { n: i + 1 })} placeholder={t('contacts.name')} value={c.name} onChange={(e) => handleContactChange(i, 'name', e.target.value)} className={field} />
                 <select aria-label={t('contacts.relationshipOf', { n: i + 1 })} value={c.relationship} onChange={(e) => handleContactChange(i, 'relationship', e.target.value)} className={field}>
                   <option value="">{t('contacts.relationship')}</option>
-                  {constants?.medical.RELATIONSHIPS.map(r => (
+                  {(constants?.medical.RELATIONSHIPS || []).map(r => (
                     <option key={r} value={r}>{tValue(r, 'relationship', lang)}</option>
                   ))}
                 </select>
                 <input aria-label={t('contacts.phoneOf', { n: i + 1 })} placeholder={t('contacts.phone')} type="tel" value={c.phone} onChange={(e) => handleContactChange(i, 'phone', e.target.value)} className={field} />
+                </div>
               </div>
             ))}
           </div>
         </section>
 
         {/* Save bar. z-modal, not z-sticky: nothing may sit over a primary action. */}
-        <div className="fixed inset-x-0 bottom-0 z-modal flex justify-center border-t border-line bg-surface p-6 shadow-elevated">
+        <div className="glass-nav fixed inset-x-0 bottom-0 z-modal flex justify-center p-6">
           <button
             type="submit"
             disabled={saving}
-            className="flex w-full max-w-xl items-center justify-center gap-2 rounded-ui-md bg-primary py-4 font-bold text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50"
+            className="brand-gradient flex w-full max-w-xl items-center justify-center gap-2 rounded-ui-md py-4 font-bold text-white shadow-card-hover transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
           >
             {saving ? <Loader2 className="animate-spin" size={20} aria-hidden="true" /> : <Save size={20} aria-hidden="true" />}
             {saving ? t('settings.saving') : t('settings.save')}

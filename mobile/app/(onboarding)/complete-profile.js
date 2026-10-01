@@ -285,7 +285,7 @@ export default function CompleteProfileScreen() {
     const timeout = setTimeout(async () => {
       setSearchingMed(true);
       try {
-        const res = await fetch(`https://medicament-api.vercel.app/api/medicaments/search?keyword=${medicationSearch}`);
+        const res = await fetch(`https://medicament-api.vercel.app/api/medicaments/search?keyword=${encodeURIComponent(medicationSearch)}`);
         const json = await res.json();
         setMedicationResults(Array.isArray(json) ? json.slice(0, 5) : []);
       } catch (err) {

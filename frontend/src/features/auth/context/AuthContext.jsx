@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import authService from '../services/authService';
+import { readStore, writeStore, removeStore } from '../../../utils/storage';
 
 const AuthContext = createContext();
 
@@ -8,16 +9,24 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const refreshUser = async () => {
+    const { user } = await authService.getMe();
+    setUser(user);
+    return user;
+  };
+
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('najdda_token');
+      const token = readStore('najdda_token');
       if (token) {
         try {
-          const { user } = await authService.getMe();
-          setUser(user);
+          await refreshUser();
         } catch (err) {
-          localStorage.removeItem('najdda_token');
-          setUser(null);
+          const status = err.response?.status;
+          if (status === 401 || status === 403) {
+            removeStore('najdda_token');
+            setUser(null);
+          }
         }
       }
       setLoading(false);
@@ -26,18 +35,34 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
+  // Fired by the apiClient response interceptor on an expired session. Without
+  // this the provider kept `user` truthy while the token was gone, so
+  // ProtectedRoute kept rendering the protected page with no session behind it.
+  useEffect(() => {
+    const onExpired = () => {
+      removeStore('najdda_token');
+      removeStore('najdda_profile_draft');
+      setUser(null);
+      setError(null);
+    };
+    window.addEventListener('najdda:session-expired', onExpired);
+    return () => window.removeEventListener('najdda:session-expired', onExpired);
+  }, []);
+
   const login = async (credentials) => {
     setLoading(true);
     setError(null);
     try {
       const { user, token } = await authService.login(credentials);
-      localStorage.setItem('najdda_token', token);
+      writeStore('najdda_token', token);
       setUser(user);
       return user;
     } catch (err) {
-      const message = err.response?.data?.message || 'Login failed';
-      setError(message);
-      throw new Error(message);
+      // The whole axios error is kept, not just its message: the form needs
+      // `err.response` to tell a rejected password (401) from an unreachable
+      // API (no response) or a 503, and `err.message` to detect a timeout.
+      setError(err);
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -48,27 +73,36 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { user, token } = await authService.register(userData);
-      localStorage.setItem('najdda_token', token);
+      writeStore('najdda_token', token);
       setUser(user);
       return user;
     } catch (err) {
-      const message = err.response?.data?.message || 'Registration failed';
-      setError(message);
-      throw new Error(message);
+      setError(err);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
+  // A failed attempt left its message on screen while the patient typed the
+  // correction, and the context error is shared between /login and /register —
+  // so a stale "Invalid credentials" followed the user across pages.
+  const clearError = () => setError(null);
+
   const logout = () => {
-    localStorage.removeItem('najdda_token');
+    removeStore('najdda_token');
+    removeStore('najdda_profile_draft');
     setUser(null);
+    setError(null);
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        setUser,
+        refreshUser,
+        clearError,
         loading,
         error,
         login,

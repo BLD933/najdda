@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../features/auth/context/AuthContext';
 import profileService from '../features/auth/services/profileService';
 import ThemeToggle from '../features/theme/components/ThemeToggle';
 import LanguageSwitcher from '../features/i18n/LanguageSwitcher';
 import { useTranslation } from '../features/i18n/I18nContext';
 import { tValue, isEmptyValue } from '../features/i18n/valueLabels';
+import { readStore, writeStore, removeStore } from '../utils/storage';
 import { User, Phone, MapPin, Droplets, Activity, Loader2, Save, Plus, X, Check, Navigation, ArrowLeft } from 'lucide-react';
+import DirIcon from '../components/ui/dir-icon';
 
 // Step names are KEYS, not strings, and they live at module scope so the
 // stepper below cannot drift out of sync with `totalSteps`. They are resolved
@@ -22,6 +25,10 @@ const STEPS = [
 
 const CompleteProfilePage = () => {
   const navigate = useNavigate();
+  // Without this the wizard saved the profile but never told AuthContext, so
+  // ProtectedRoute still saw the incomplete profile and bounced the patient
+  // back to step 1 — with the draft already deleted, i.e. an empty form.
+  const { refreshUser } = useAuth();
   const { t, lang } = useTranslation();
   const liveRegion = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -29,8 +36,13 @@ const CompleteProfilePage = () => {
   const [constants, setConstants] = useState(null);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState(() => {
-    const draft = localStorage.getItem('najdda_profile_draft');
-    return draft ? JSON.parse(draft).currentStep : 1;
+    try {
+      const draft = readStore('najdda_profile_draft');
+      const n = draft ? JSON.parse(draft).currentStep : 1;
+      return Number.isInteger(n) && n >= 1 && n <= 5 ? n : 1;
+    } catch {
+      return 1;
+    }
   });
   const totalSteps = 5;
 
@@ -40,14 +52,50 @@ const CompleteProfilePage = () => {
   const [nearbyHospitals, setNearbyHospitals] = useState([]);
   const [searchingHospitals, setSearchingHospitals] = useState(false);
   const [isManualHospital, setIsManualHospital] = useState(false);
+  const [locatingGeo, setLocatingGeo] = useState(false);
   const [hospitalSearch, setHospitalSearch] = useState('');
   const [hospitalSearchResults, setHospitalSearchResults] = useState([]);
   const [searchingHospitalName, setSearchingHospitalName] = useState(false);
 
   const [formData, setFormData] = useState(() => {
-    const draft = localStorage.getItem('najdda_profile_draft');
-    if (draft) {
-      return JSON.parse(draft).formData;
+    const defaults = {
+      countryCode: '+212',
+      phoneNumber: '',
+      dateOfBirth: '',
+      gender: '',
+      bloodType: '',
+      country: 'Morocco',
+      city: '',
+      preferredLanguage: 'Arabic',
+      weight: '',
+      height: '',
+      isPregnant: false,
+      drugAllergies: ['None'],
+      foodAllergies: ['None'],
+      smokingStatus: 'Non-smoker',
+      alcoholStatus: 'Never',
+      insuranceType: 'None / Self-Pay',
+      chronicDiseases: ['None (Healthy)'],
+      medications: [],
+      preferredHospital: '',
+      latitude: null,
+      longitude: null,
+      emergencyContacts: [{ name: '', relationship: '', phone: '' }]
+    };
+    try {
+      const draft = readStore('najdda_profile_draft');
+      if (draft) {
+        const parsed = JSON.parse(draft).formData || {};
+        return {
+          ...defaults,
+          ...parsed,
+          medications: Array.isArray(parsed.medications) ? parsed.medications : [],
+          drugAllergies: Array.isArray(parsed.drugAllergies) ? parsed.drugAllergies : defaults.drugAllergies,
+          emergencyContacts: Array.isArray(parsed.emergencyContacts) && parsed.emergencyContacts.length > 0 ? parsed.emergencyContacts : defaults.emergencyContacts,
+        };
+      }
+    } catch {
+      /* draft corrompu : repartir des défauts */
     }
     return {
       countryCode: '+212',
@@ -77,7 +125,7 @@ const CompleteProfilePage = () => {
 
   // Persistence Logic
   useEffect(() => {
-    localStorage.setItem('najdda_profile_draft', JSON.stringify({ formData, currentStep, isManualHospital }));
+    writeStore('najdda_profile_draft', JSON.stringify({ formData, currentStep, isManualHospital }));
   }, [formData, currentStep, isManualHospital]);
 
   // Auto-load hospitals when user reaches Step 5. The load happens ONCE per
@@ -136,7 +184,7 @@ const CompleteProfilePage = () => {
       setSearchingMed(true);
       try {
         // Using the /api/medicaments/search endpoint with the 'keyword' parameter
-        const res = await fetch(`https://medicament-api.vercel.app/api/medicaments/search?keyword=${medicationSearch}`);
+        const res = await fetch(`https://medicament-api.vercel.app/api/medicaments/search?keyword=${encodeURIComponent(medicationSearch)}`);
         const data = await res.json();
 
         // The API returns an array directly for the search endpoint
@@ -170,13 +218,28 @@ const CompleteProfilePage = () => {
     }));
   };
 
+  // A geolocation call with no error callback and no timeout: a denied
+  // permission or a silent timeout left the button reading "save my location"
+  // forever with nothing happening, and no message explaining why.
   const handleGPS = () => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
+    if (!('geolocation' in navigator)) {
+      setError(t('emergency.geoUnsupported'));
+      return;
+    }
+    setLocatingGeo(true);
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
         const { latitude, longitude } = position.coords;
         setFormData(prev => ({ ...prev, latitude, longitude }));
-      });
-    }
+        setLocatingGeo(false);
+      },
+      () => {
+        setError(t('emergency.geoDenied'));
+        setLocatingGeo(false);
+      },
+      { timeout: 10000, enableHighAccuracy: true },
+    );
   };
 
   const fetchHospitalsByCity = async (city) => {
@@ -284,10 +347,19 @@ const CompleteProfilePage = () => {
     }));
   };
 
+  // Stable per-row id. `key={index}` on a removable list makes React reuse the
+  // DOM of the row that took the removed one's place, so the inputs kept their
+  // old text: removing the first row showed the second one's name in the first
+  // row's box. The id is client-only and stripped before submit.
+  const contactKey = (c, i) => c.__key ?? `c${i}`;
+
   const addContact = () => {
     setFormData(prev => ({
       ...prev,
-      emergencyContacts: [...prev.emergencyContacts, { name: '', relationship: '', phone: '' }]
+      emergencyContacts: [
+        ...prev.emergencyContacts,
+        { name: '', relationship: '', phone: '', __key: `c${Date.now()}` },
+      ],
     }));
   };
 
@@ -342,6 +414,21 @@ const CompleteProfilePage = () => {
         setError(t('wizard.error.vitals'));
         return false;
       }
+      // The backend silently coerces out-of-range numbers to NULL
+      // (toNum(weight, 20, 300) / toNum(height, 50, 250)) and still answers
+      // 200, so a patient typing 1.75 metres got a saved profile with a null
+      // height — which the profile guard then treats as "incomplete" and
+      // bounces back to this wizard with the draft already gone. Reject here.
+      const w = Number(formData.weight);
+      const h = Number(formData.height);
+      if (!Number.isFinite(w) || w < 20 || w > 300) {
+        setError(t('wizard.error.weightRange'));
+        return false;
+      }
+      if (!Number.isFinite(h) || h < 50 || h > 250) {
+        setError(t('wizard.error.heightRange'));
+        return false;
+      }
     }
     return true;
   };
@@ -354,23 +441,35 @@ const CompleteProfilePage = () => {
       const fullPhoneNumber = `${formData.countryCode} ${formData.phoneNumber}`;
 
       // Clean the payload
+      const toNum = (v) => {
+        if (v === '' || v === null || v === undefined) return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
       const payload = {
         ...formData,
         phoneNumber: fullPhoneNumber,
-        weight: formData.weight ? parseInt(formData.weight) : null,
-        height: formData.height ? parseInt(formData.height) : null,
+        weight: toNum(formData.weight),
+        height: toNum(formData.height),
       };
 
       // Remove internal frontend-only fields
       delete payload.countryCode;
+      // `__key` is a client-only React key; persisting it would add a column
+      // the profile table does not have.
+      payload.emergencyContacts = (payload.emergencyContacts || []).map(({ __key, ...c }) => c);
 
       await profileService.updateProfile(payload);
-      localStorage.removeItem('najdda_profile_draft');
-      window.location.href = '/dashboard';
+      removeStore('najdda_profile_draft');
+      // Refresh the shared auth state BEFORE navigating, otherwise the guard
+      // reads the stale incomplete profile and re-renders this wizard.
+      try { await refreshUser?.(); } catch { /* ignore */ }
+      navigate('/dashboard');
     } catch (err) {
       const errMsg = err.response?.data?.message || t('wizard.error.update');
       const missing = err.response?.data?.missingFields;
       setError(missing ? `${errMsg}: ${missing.join(', ')}` : errMsg);
+    } finally {
       setSubmitting(false);
     }
   };
@@ -384,7 +483,7 @@ const CompleteProfilePage = () => {
   // halves by flex instead: `w-full` in the shared string would beat both
   // `w-1/3` and `flex-1` and crush the number input to a sliver.
   const fieldBase =
-    'rounded-ui-sm border border-line-strong bg-surface px-3 py-3 text-ink transition-colors placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none';
+    'rounded-ui-sm border border-line-strong bg-surface/70 px-3 py-3 text-ink backdrop-blur-xl transition-all placeholder:text-ink-subtle focus:border-primary focus-visible:outline-none';
   const field = `${fieldBase} w-full`;
   const label = 'text-sm font-medium text-ink-muted';
 
@@ -399,9 +498,10 @@ const CompleteProfilePage = () => {
 
   return (
     <div className="min-h-screen bg-canvas">
-      <nav className="sticky top-0 z-sticky flex items-center gap-4 border-b border-line bg-surface px-6 py-4">
+      <div aria-hidden="true" className="aurora" />
+      <nav className="glass-nav sticky top-0 z-sticky flex items-center gap-4 px-6 py-4">
         <button onClick={() => navigate('/dashboard')} className="rounded-full p-2 text-ink-muted transition-colors hover:bg-surface-3 hover:text-ink" aria-label={t('wizard.backToDashboard')}>
-          <ArrowLeft size={20} aria-hidden="true" />
+          <DirIcon name={ArrowLeft} size={20} aria-hidden="true" />
         </button>
         <h1 className="flex-1 text-xl font-bold">{t('wizard.title')}</h1>
         <LanguageSwitcher />
@@ -422,12 +522,12 @@ const CompleteProfilePage = () => {
             const active = currentStep === step;
             return (
               <li key={key} className="relative flex flex-1 flex-col items-center">
-                <div className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full font-bold transition-colors ${
+                <div className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full font-bold transition-all ${
                   done
-                    ? 'bg-primary text-on-primary'
+                    ? 'bg-success text-on-primary shadow-card'
                     : active
-                      ? 'bg-primary text-on-primary ring-2 ring-primary ring-offset-2 ring-offset-canvas'
-                      : 'bg-surface-3 text-ink-subtle'
+                      ? 'brand-gradient text-white shadow-card-hover ring-2 ring-primary/40 ring-offset-2 ring-offset-canvas'
+                      : 'glass text-ink-subtle'
                 }`}>
                   {done ? <Check size={18} strokeWidth={3} /> : step}
                 </div>
@@ -437,27 +537,28 @@ const CompleteProfilePage = () => {
                   {t(key)}
                 </span>
                 {step < totalSteps && (
-                  <div className={`absolute left-1/2 top-5 h-0.5 w-full ${done ? 'bg-primary' : 'bg-surface-3'}`} />
+                  <div className={`absolute start-1/2 top-5 h-0.5 w-full ${done ? 'bg-success' : 'bg-line'}`} />
                 )}
               </li>
             );
           })}
         </ol>
 
-        <div className="overflow-hidden rounded-ui-xl border border-line bg-surface shadow-card">
-          {/* Pinned dark accent panel, not a second theme — see index.css. */}
-          <div className="flex items-center justify-between bg-hero px-8 py-6">
-            <div>
-              <h2 className="text-2xl font-bold text-on-hero">{t(STEPS[currentStep - 1])}</h2>
-              <p className="mt-1 text-on-hero-muted">{t('wizard.heroStepOf', { current: currentStep, total: totalSteps })}</p>
+        <div className="glass-strong overflow-hidden rounded-ui-xl">
+          {/* Brand gradient step header: white text only, both themes. */}
+          <div className="brand-gradient relative flex items-center justify-between overflow-hidden px-8 py-6">
+            <div aria-hidden="true" className="absolute -right-10 -top-14 h-48 w-48 rounded-full bg-white/15 blur-[60px]" />
+            <div className="relative">
+              <h2 className="text-2xl font-bold text-white">{t(STEPS[currentStep - 1])}</h2>
+              <p className="mt-1 text-white/75">{t('wizard.heroStepOf', { current: currentStep, total: totalSteps })}</p>
             </div>
-            <Activity size={32} className="text-on-hero-muted" aria-hidden="true" />
+            <Activity size={32} className="relative text-white/70" aria-hidden="true" />
           </div>
 
           <div className="p-8">
             <div aria-live="assertive">
               {error && (
-                <div className="mb-6 rounded-ui-md border border-emergency/40 bg-emergency-subtle p-4 text-on-emergency-subtle">
+                <div className="glass mb-6 rounded-ui-md border-emergency/50 p-4 text-on-emergency-subtle">
                   {error}
                 </div>
               )}
@@ -474,7 +575,7 @@ const CompleteProfilePage = () => {
                     <label htmlFor="cp-countryCode" className={label}>{t('wizard.s1.phone')}</label>
                     <div className="flex gap-2">
                       <select id="cp-countryCode" name="countryCode" value={formData.countryCode} onChange={handleChange} className={`${fieldBase} w-1/4 shrink-0 sm:w-1/3`}>
-                        {constants?.geography.COUNTRY_CODES.map(c => (
+                        {(constants?.geography.COUNTRY_CODES || []).map(c => (
                           <option key={c.code} value={c.code}>{c.country} ({c.code})</option>
                         ))}
                       </select>
@@ -490,7 +591,7 @@ const CompleteProfilePage = () => {
                     <label htmlFor="cp-gender" className={label}>{t('wizard.s1.gender')}</label>
                     <select id="cp-gender" name="gender" value={formData.gender} onChange={handleChange} className={field}>
                       <option value="">{t('wizard.s1.select')}</option>
-                      {constants?.medical.GENDERS.map(g => (
+                      {(constants?.medical.GENDERS || []).map(g => (
                       <option key={g} value={g}>{tValue(g, 'gender', lang)}</option>
                     ))}
                     </select>
@@ -498,7 +599,7 @@ const CompleteProfilePage = () => {
                   <div className="space-y-2">
                     <label htmlFor="cp-country" className={label}>{t('wizard.s1.country')}</label>
                     <select id="cp-country" name="country" value={formData.country} onChange={handleChange} className={field}>
-                      {constants?.geography.COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      {(constants?.geography.COUNTRIES || []).map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -506,7 +607,7 @@ const CompleteProfilePage = () => {
                     {formData.country === 'Morocco' ? (
                       <select id="cp-city" name="city" value={formData.city} onChange={handleChange} className={field}>
                         <option value="">{t('wizard.s1.selectCity')}</option>
-                        {constants?.geography.MOROCCAN_CITIES.map(city => <option key={city} value={city}>{city}</option>)}
+                        {(constants?.geography.MOROCCAN_CITIES || []).map(city => <option key={city} value={city}>{city}</option>)}
                       </select>
                     ) : (
                       <input id="cp-city" type="text" name="city" value={formData.city} onChange={handleChange} className={field} />
@@ -543,17 +644,17 @@ const CompleteProfilePage = () => {
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                   <div className="space-y-2">
                     <label htmlFor="cp-weight" className={label}>{t('wizard.s2.weight')}</label>
-                    <input id="cp-weight" type="number" name="weight" value={formData.weight} onChange={handleChange} className={field} />
+                    <input id="cp-weight" type="number" name="weight" min="20" max="300" step="0.1" value={formData.weight} onChange={handleChange} className={field} />
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="cp-height" className={label}>{t('wizard.s2.height')}</label>
-                    <input id="cp-height" type="number" name="height" value={formData.height} onChange={handleChange} className={field} />
+                    <input id="cp-height" type="number" name="height" min="50" max="250" step="0.1" value={formData.height} onChange={handleChange} className={field} />
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="cp-bloodType" className={label}>{t('wizard.s2.bloodType')}</label>
                     <select id="cp-bloodType" name="bloodType" value={formData.bloodType} onChange={handleChange} className={field}>
                       <option value="">{t('wizard.s1.select')}</option>
-                      {constants?.medical.BLOOD_TYPES.map(bt => <option key={bt} value={bt}>{bt}</option>)}
+                      {(constants?.medical.BLOOD_TYPES || []).map(bt => <option key={bt} value={bt}>{bt}</option>)}
                     </select>
                   </div>
                 </div>
@@ -561,13 +662,13 @@ const CompleteProfilePage = () => {
                   <div className="space-y-2">
                     <label htmlFor="cp-smoking" className={label}>{t('wizard.s2.smoking')}</label>
                     <select id="cp-smoking" name="smokingStatus" value={formData.smokingStatus} onChange={handleChange} className={field}>
-                      {constants?.medical.LIFESTYLE.SMOKING.map(s => <option key={s} value={s}>{s}</option>)}
+                      {(constants?.medical.LIFESTYLE?.SMOKING || []).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="cp-insurance" className={label}>{t('wizard.s2.insurance')}</label>
                     <select id="cp-insurance" name="insuranceType" value={formData.insuranceType} onChange={handleChange} className={field}>
-                      {constants?.medical.INSURANCE_MOROCCO.map(i => <option key={i} value={i}>{i}</option>)}
+                      {(constants?.medical.INSURANCE_MOROCCO || []).map(i => <option key={i} value={i}>{i}</option>)}
                     </select>
                   </div>
                 </div>
@@ -587,7 +688,7 @@ const CompleteProfilePage = () => {
                 <div className="space-y-4">
                   <span id="cp-drug-allergies" className={`${label} block`}>{t('wizard.s3.drugAllergies')}</span>
                   <div role="group" aria-labelledby="cp-drug-allergies" className="flex flex-wrap gap-2">
-                    {constants?.medical.ALLERGIES.DRUGS.map(allergy => {
+                    {(constants?.medical.ALLERGIES?.DRUGS || []).map(allergy => {
                       const selected = formData.drugAllergies.includes(allergy);
                       return (
                         <button key={allergy} type="button" role="checkbox" aria-checked={selected}
@@ -605,7 +706,7 @@ const CompleteProfilePage = () => {
                 <div className="space-y-4">
                   <span id="cp-chronic" className={`${label} block`}>{t('wizard.s3.chronic')}</span>
                   <div role="group" aria-labelledby="cp-chronic" className="flex flex-wrap gap-2">
-                    {constants?.medical.CHRONIC_CONDITIONS.map(c => {
+                    {(constants?.medical.CHRONIC_CONDITIONS || []).map(c => {
                       const selected = formData.chronicDiseases.includes(c);
                       return (
                         <button key={c} type="button" role="checkbox" aria-checked={selected}
@@ -638,7 +739,7 @@ const CompleteProfilePage = () => {
                     onChange={(e) => setMedicationSearch(e.target.value)}
                     className={field}
                   />
-                  {searchingMed && <Loader2 className="absolute right-4 top-4 animate-spin text-primary" aria-hidden="true" />}
+                  {searchingMed && <Loader2 className="absolute end-4 top-4 animate-spin text-primary" aria-hidden="true" />}
 
                   {medicationResults.length > 0 && (
                     <div className="absolute z-dropdown mt-2 w-full overflow-hidden rounded-ui-sm border border-line bg-surface shadow-elevated">
@@ -723,13 +824,13 @@ const CompleteProfilePage = () => {
                       className={field}
                     />
                     {(searchingHospitalName || searchingHospitals) && (
-                      <Loader2 className="absolute right-3 top-3.5 animate-spin text-primary" size={18} aria-hidden="true" />
+                      <Loader2 className="absolute end-3 top-3.5 animate-spin text-primary" size={18} aria-hidden="true" />
                     )}
                   </div>
 
                   {/* City-based preloaded results */}
                   {nearbyHospitals.length > 0 && !hospitalSearch && (
-                    <div className="overflow-hidden rounded-ui-md border border-line bg-surface shadow-card">
+                    <div className="glass overflow-hidden rounded-ui-md">
                       <p className="border-b border-line bg-surface-2 px-4 py-2 text-xs font-semibold text-ink-muted">
                         {t('wizard.s5.hospitalsIn', { city: formData.city })}
                       </p>
@@ -751,7 +852,7 @@ const CompleteProfilePage = () => {
 
                   {/* Search results */}
                   {hospitalSearchResults.length > 0 && hospitalSearch && (
-                    <div className="overflow-hidden rounded-ui-md border border-line bg-surface shadow-card">
+                    <div className="glass overflow-hidden rounded-ui-md">
                       {hospitalSearchResults.map(h => (
                         <button
                           key={h.id}
@@ -773,14 +874,16 @@ const CompleteProfilePage = () => {
 
                 <div className="flex flex-col items-center gap-4 rounded-ui-md bg-primary-subtle p-6">
                   <p className="text-center text-sm font-medium text-on-primary-subtle">{t('wizard.s5.gpsText')}</p>
-                  <button type="button" onClick={handleGPS} className={`flex items-center gap-2 rounded-full px-6 py-2 font-bold transition-colors ${
-                    formData.latitude
+                  <button type="button" onClick={handleGPS} disabled={locatingGeo} aria-busy={locatingGeo} className={`flex items-center gap-2 rounded-full px-6 py-2 font-bold transition-colors disabled:opacity-60 ${
+                    formData.latitude != null
                       ? 'bg-success-subtle text-on-success-subtle'
                       : 'bg-primary text-on-primary hover:bg-primary-hover'
                   }`}>
-                    {formData.latitude
-                      ? <><Check size={16} aria-hidden="true" /> {t('wizard.s5.locationSaved')}</>
-                      : <><Navigation size={16} aria-hidden="true" /> {t('wizard.s5.saveLocation')}</>}
+                    {locatingGeo
+                      ? <><Loader2 className="animate-spin" size={16} aria-hidden="true" /> {t('emergency.locating')}</>
+                      : formData.latitude != null
+                        ? <><Check size={16} aria-hidden="true" /> {t('wizard.s5.locationSaved')}</>
+                        : <><Navigation size={16} aria-hidden="true" /> {t('wizard.s5.saveLocation')}</>}
                   </button>
                 </div>
 
@@ -794,7 +897,7 @@ const CompleteProfilePage = () => {
                     </button>
                   </div>
                   {formData.emergencyContacts.map((contact, index) => (
-                    <div key={index} className="space-y-2 rounded-ui-md border border-line bg-surface-2 p-4">
+                    <div key={contactKey(contact, index)} className="space-y-2 rounded-ui-md border border-line bg-surface-2 p-4">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-ink-subtle">{t('contacts.row', { n: index + 1 })}</span>
                         {formData.emergencyContacts.length > 1 && (
@@ -817,7 +920,7 @@ const CompleteProfilePage = () => {
                           className={field}
                         >
                           <option value="">{t('contacts.relationship')}</option>
-                          {constants?.medical.RELATIONSHIPS.map(r => (
+                          {(constants?.medical.RELATIONSHIPS || []).map(r => (
                             <option key={r} value={r}>{tValue(r, 'relationship', lang)}</option>
                           ))}
                         </select>
@@ -833,16 +936,16 @@ const CompleteProfilePage = () => {
             {/* Navigation Buttons */}
             <div className="mt-12 flex justify-between gap-4">
               {currentStep > 1 && (
-                <button type="button" onClick={prevStep} className="rounded-ui-md bg-surface-2 px-8 py-3 font-bold text-ink-muted transition-colors hover:bg-surface-3 hover:text-ink">
+                <button type="button" onClick={prevStep} className="glass rounded-ui-md px-8 py-3 font-bold text-ink-muted transition-all hover:text-ink hover:shadow-card-hover">
                   {t('wizard.back')}
                 </button>
               )}
               {currentStep < totalSteps ? (
-                <button type="button" onClick={nextStep} className="ml-auto rounded-ui-md bg-primary px-10 py-3 font-bold text-on-primary transition-colors hover:bg-primary-hover">
+                <button type="button" onClick={nextStep} className="brand-gradient ms-auto rounded-ui-md px-10 py-3 font-bold text-white shadow-card-hover transition-transform hover:scale-[1.03]">
                   {t('wizard.next')}
                 </button>
               ) : (
-                <button onClick={handleSubmit} disabled={submitting} className="ml-auto flex items-center gap-2 rounded-ui-md bg-primary px-10 py-3 font-bold text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50">
+                <button type="button" onClick={handleSubmit} disabled={submitting} className="brand-gradient ms-auto flex items-center gap-2 rounded-ui-md px-10 py-3 font-bold text-white shadow-card-hover transition-transform hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100">
                   {submitting ? <Loader2 className="animate-spin" size={20} aria-hidden="true" /> : <Save size={20} aria-hidden="true" />} {submitting ? t('wizard.saving') : t('wizard.finalize')}
                 </button>
               )}

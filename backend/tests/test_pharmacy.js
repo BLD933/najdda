@@ -1,5 +1,5 @@
 require('dotenv').config();
-const DrugSafetyService = require('./src/core/services/DrugSafetyService');
+const DrugSafetyService = require('../src/core/services/DrugSafetyService');
 
 async function test() {
   const result = await DrugSafetyService.checkInteraction({

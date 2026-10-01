@@ -220,27 +220,9 @@ export default function EmergencyScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Emergency Contacts status */}
+          {/* Emergency Contacts status — branché au profil utilisateur, pas de contacts fictifs */}
           <View style={styles.glassCard}>
-            <Text style={styles.contactsLabel}>Emergency Contacts</Text>
-            <View style={styles.contactItem}>
-              <View style={styles.contactAvatar}>
-                <Text style={styles.avatarText}>MK</Text>
-              </View>
-              <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>Mariam K. (Sister)</Text>
-                <Text style={styles.contactStatusPulse}>Notifying...</Text>
-              </View>
-            </View>
-            <View style={styles.contactItem}>
-              <View style={styles.contactAvatar}>
-                <Text style={styles.avatarText}>JD</Text>
-              </View>
-              <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>Dr. James D.</Text>
-                <Text style={styles.contactStatus}>Delivered</Text>
-              </View>
-            </View>
+            <Text style={styles.contactsLabel}>Emergency Contacts (Coming soon — profil)</Text>
           </View>
         </View>
 

@@ -70,16 +70,16 @@ Compact profile injection, regex JSON extraction, think-tag stripping, 1024 toke
 
 | Layer | Model | Use |
 | :--- | :--- | :--- |
-| FAST | `gemini-2.5-flash` | routing, safety gateway, triage, <500ms |
-| DEEP | `gemini-3.1-pro-preview` (or `gemini-2.5-flash`) | diagnosis, synthesis empathique |
-| VISION | `gemini-2.5-flash` (multimodal) | prescriptions, rashes |
+| FAST | `LLM_MODEL_FAST (voir .env.preset.groq, ex qwen/qwen3.8-27b)` | routing, safety gateway, triage, <500ms |
+| DEEP | `gemini-3.1-pro-preview` (or `LLM_MODEL_FAST (voir .env.preset.groq, ex qwen/qwen3.8-27b)`) | diagnosis, synthesis empathique |
+| VISION | `LLM_MODEL_FAST (voir .env.preset.groq, ex qwen/qwen3.8-27b)` (multimodal) | prescriptions, rashes |
 
 1. Get key: https://aistudio.google.com → Create API Key
 2. Backend `.env`:
 ```env
 GEMINI_API_KEY=AIzaSy...
-MODEL_FAST=gemini-2.5-flash
-MODEL_DEEP=gemini-2.5-pro
+MODEL_FAST=LLM_MODEL_FAST (voir .env.preset.groq, ex qwen/qwen3.8-27b)
+MODEL_DEEP=LLM_MODEL_DEEP (voir .env.preset.groq, ex openai/gpt-oss-120b)
 ```
 3. Code: use `@langchain/google-genai` in `GemmaClient.js` → rename to `GeminiClient.js`:
 ```js
@@ -96,8 +96,8 @@ const deep = new ChatGoogleGenerativeAI({ model: process.env.MODEL_DEEP, tempera
 graph TD
     User((Patient)) -->|Darija/AR/FR| App[Web + Mobile]
     App -->|POST /api/orchestrator/chat| O{Orchestrator LangGraph}
-    O <-->|fast| F[gemini-2.5-flash]
-    O <-->|deep| P[gemini-2.5-pro]
+    O <-->|fast| F[LLM_MODEL_FAST (voir .env.preset.groq, ex qwen/qwen3.8-27b)]
+    O <-->|deep| P[LLM_MODEL_DEEP (voir .env.preset.groq, ex openai/gpt-oss-120b)]
     O --> DB[(PostgreSQL)]
     O --> Em[Emergency] & Tri[Triage] & Pha[Pharmacy] & Mat[Maternal/Pediatric] & Loc[Locator]
     Em -->|SOS| SOS[150/112 + n8n WhatsApp]

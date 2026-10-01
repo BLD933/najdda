@@ -15,7 +15,7 @@ export default function Index() {
 
   if (isAuthenticated) {
     if (!isProfileComplete) {
-      return <Redirect href="/(auth)/login" />;
+      return <Redirect href="/(onboarding)/complete-profile" />;
     }
     return <Redirect href="/(main)/dashboard" />;
   }

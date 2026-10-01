@@ -31,6 +31,21 @@
   --color-on-primary: #ffffff;
   --color-on-primary-subtle: #1d4ed8;
 
+  /* ── NAJDDA brand (logo gradient teal → blue → purple) ──────────────
+     Teal/blue/purple are decorative-only: none clears 4.5:1 on white as
+     text, so they never appear as `text-*` on light surfaces. Text on the
+     gradient always uses `on-primary` (white). Navy is the wordmark ink
+     in light mode only; dark mode uses `ink`. */
+  --color-brand-teal: #14b8a6;
+  --color-brand-blue: #2563eb;
+  --color-brand-purple: #8b5cf6;
+  --color-brand-navy: #1e3a5f;
+
+  /* Text on the white CTA sitting on the brand gradient. Pinned dark navy in
+     BOTH themes (like `hero`): the gradient is identical in light and dark,
+     so the button text must be too — a themed token would wash out. */
+  --color-on-brand: #1e3a5f;
+
   /* The hero is an accent panel, not a second theme. Its surface is pinned dark
      in BOTH themes so the children are theme-independent — inverting it made
      every ink inside it fail in whichever theme it wasn't tuned for.
@@ -115,6 +130,12 @@
   --color-on-primary-subtle: #bfdbfe;
   --color-on-primary-muted: #172554;
 
+  --color-brand-teal: #2dd4bf;
+  --color-brand-blue: #60a5fa;
+  --color-brand-purple: #a78bfa;
+  --color-brand-navy: #f1f5f9;
+  --color-on-brand: #1e3a5f;
+
   --color-emergency: #ef4444;
   --color-emergency-hover: #f87171;
   --color-emergency-subtle: #450a0a;
@@ -141,6 +162,83 @@ html {
   border-radius: 0.25rem;
 }
 
+/* ── Glassmorphism 2.0 (NAJDDA brand) ─────────────────────────────────
+   Glass is depth, not theme: translucent surface + blur + hairline border.
+   - `.glass` / `.glass-strong` use `color-mix` over the semantic surface so
+     dark mode stays free. Never put body text directly on photographic or
+     gradient backgrounds — text always sits on a glass panel or hero token.
+   - `.brand-gradient` is decorative background only; text on it is white.
+   - Blurs are disabled under `prefers-reduced-motion` below (static panels). */
+@layer components {
+  .glass {
+    background: color-mix(in srgb, var(--color-surface) 68%, transparent);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
+    box-shadow: var(--shadow-card);
+  }
+
+  .glass-strong {
+    background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+    backdrop-filter: blur(28px) saturate(1.6);
+    -webkit-backdrop-filter: blur(28px) saturate(1.6);
+    border: 1px solid color-mix(in srgb, var(--color-line) 65%, transparent);
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .glass-nav {
+    background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+    backdrop-filter: blur(16px) saturate(1.5);
+    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-line) 60%, transparent);
+  }
+
+  .brand-gradient {
+    background-image: linear-gradient(135deg, var(--color-brand-teal) 0%, var(--color-brand-blue) 52%, var(--color-brand-purple) 100%);
+  }
+
+  .brand-gradient-text {
+    background-image: linear-gradient(120deg, var(--color-brand-teal), var(--color-brand-blue) 55%, var(--color-brand-purple));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Aurora field behind glass: fixed-position blobs in brand hues at low
+     opacity. Pure decoration — `aria-hidden` at the call site. */
+  .aurora {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .aurora::before,
+  .aurora::after {
+    content: "";
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(110px);
+  }
+
+  .aurora::before {
+    width: 44rem;
+    height: 44rem;
+    top: -14rem;
+    left: -10rem;
+    background: color-mix(in srgb, var(--color-brand-teal) 26%, transparent);
+  }
+
+  .aurora::after {
+    width: 40rem;
+    height: 40rem;
+    bottom: -16rem;
+    right: -8rem;
+    background: color-mix(in srgb, var(--color-brand-purple) 26%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -149,5 +247,12 @@ html {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .glass,
+  .glass-strong,
+  .glass-nav {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

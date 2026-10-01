@@ -2,10 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="NAJDDA - Votre assistant medical multIAgent. Triez vos symptomes, accedez a votre dossier medical, et calling d'urgence en un geste." />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#14b8a6" />
     <title>NAJDDA · Assistant medical</title>
     <script>
       // Applied before React paints, otherwise a dark-mode user gets a white flash.
@@ -18,7 +18,8 @@
           // tech starts reading French with an English voice and has to be
           // re-tasked mid-sentence. Keep DEFAULT_LANG in sync with fr.js.
           var l = localStorage.getItem('najdda-lang');
-          document.documentElement.lang = (l === 'en' || l === 'fr') ? l : 'fr';
+          document.documentElement.lang = (['en', 'fr', 'ar', 'ary', 'tzm'].includes(l)) ? l : 'fr';
+          document.documentElement.dir = (l === 'ar' || l === 'ary') ? 'rtl' : 'ltr';
         } catch (e) {}
       })();
     </script>

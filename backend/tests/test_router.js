@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { routerNode } = require('./src/core/orchestrator/nodes/routerNode');
+const { routerNode } = require('../src/core/orchestrator/nodes/routerNode');
 
 async function test() {
   const state = {

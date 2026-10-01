@@ -15,6 +15,8 @@
 export default {
   // ── Global ────────────────────────────────────────────────────────────────
   'app.loading': 'Chargement…',
+  'app.notFound': '404 - Page introuvable',
+  'app.backHome': "Retour à l'accueil",
   'app.error.network': "Je n'ai pas pu joindre le service médical. Si c'est urgent, appelez immédiatement le numéro d'urgence.",
 
   // ── Language switcher ─────────────────────────────────────────────────────
@@ -39,6 +41,9 @@ export default {
   'login.signup': 'Créer un compte',
   'login.emailPlaceholder': 'vous@exemple.com',
   'login.passwordPlaceholder': '••••••••',
+  'login.serviceDown': 'Service momentanément indisponible',
+  'login.serviceDownHelp': "Le serveur médical ne répond pas. Vérifiez votre connexion, puis réessayez dans un instant.",
+  'login.failed': 'Connexion échouée',
 
   // ── Auth: register ────────────────────────────────────────────────────────
   'register.title': 'Créer un compte',
@@ -61,6 +66,7 @@ export default {
   // "close the app". "Déconnexion" is unambiguous about signing out.
   'nav.exit': 'Déconnexion',
   'brand.name': 'NAJDDA',
+  'brand.tagline': "L'hôpital IA qui tient dans votre poche",
 
   'dashboard.hero.status': 'État médical : stable',
   'dashboard.hero.greeting': 'Salam, {name}.',
@@ -227,4 +233,66 @@ export default {
   'chat.inputLabel': 'Décrivez vos symptômes',
   'chat.inputPlaceholder': 'Décrivez vos symptômes…',
   'chat.send': 'Envoyer',
+  'chat.retry': 'Réessayer',
+
+  // ── Specialized ecosystems (ported from mobile) ─────────────────────────
+  'dashboard.ecosystems.title': 'Écosystèmes spécialisés',
+
+  'domain.pregnancy.title': 'Suivi grossesse',
+  'domain.pregnancy.description': 'Sécurité des symptômes, médicaments et aliments pendant la grossesse, par trimestre.',
+  'domain.pregnancy.placeholder': 'Décrivez votre symptôme ou votre question…',
+  'domain.pregnancy.trimester': 'Trimestre',
+  'domain.pregnancy.selectTrimester': 'Sélectionnez le trimestre',
+  'domain.pregnancy.t1': 'Trimestre 1',
+  'domain.pregnancy.t2': 'Trimestre 2',
+  'domain.pregnancy.t3': 'Trimestre 3',
+
+  'domain.children.title': 'Santé des enfants',
+  'domain.children.description': 'Symptômes et posologies des enfants, avec âge et poids pour un dosage sûr.',
+  'domain.children.placeholder': 'Décrivez les symptômes de l’enfant…',
+  'domain.children.ageMonths': 'Âge (mois)',
+  'domain.children.weightKg': 'Poids (kg)',
+
+  'domain.allergy.title': 'Allergies',
+  'domain.allergy.description': 'Analyse des réactions allergiques et conduite à tenir.',
+  'domain.allergy.placeholder': 'Décrivez la réaction allergique…',
+
+  'domain.medications.title': 'Pharmacie',
+  'domain.medications.description': 'Interactions et sécurité de vos médicaments.',
+  'domain.medications.placeholder': 'Posez votre question sur un médicament…',
+
+  'domain.status.normal': 'Normal',
+  'domain.status.warning': 'Attention',
+  'domain.status.danger': 'Danger',
+  'domain.risk.low': 'Risque faible',
+  'domain.risk.medium': 'Risque modéré',
+  'domain.risk.high': 'Risque élevé',
+  'domain.risk.unknown': 'Risque indéterminé',
+
+  // ── Emergency SOS page (ported from mobile) ─────────────────────────────
+  'emergency.title': 'Urgence SOS',
+  'emergency.active': 'Urgence active',
+  'emergency.standby': 'En veille',
+  'emergency.hint': 'Touchez pour confirmer, votre position est préparée puis le numéro d’urgence est composé.',
+  'emergency.confirm': 'Signaler une urgence ? Votre position sera préparée et le numéro d’urgence composé.',
+  'emergency.cancel': 'Annuler l’alerte',
+  'emergency.cancelConfirm': 'Terminer le mode urgence ?',
+  'emergency.callNow': 'Appeler le {number}',
+  'emergency.locationTitle': 'Ma position',
+  'emergency.noLocation': 'Position inconnue — partagez-la pour guider les secours.',
+  'emergency.shareLocation': 'Partager ma position',
+  'emergency.locating': 'Localisation…',
+  'emergency.openMaps': 'Ouvrir Maps',
+  'emergency.geoDenied': 'Position refusée. Appelez directement le numéro d’urgence.',
+  'emergency.geoUnsupported': 'Géolocalisation non supportée par votre navigateur.',
+  'emergency.manageContacts': 'Gérer',
+  'emergency.noContacts': 'Aucun contact d’urgence. Ajoutez-en dans le Passeport.',
+  'emergency.firstAidTitle': 'Premiers secours immédiats',
+  'emergency.step': 'Étape {n}',
+  'emergency.step1Title': 'Libérer les voies aériennes',
+  'emergency.step1Desc': 'Vérifiez que le patient respire et que ses voies aériennes sont dégagées.',
+  'emergency.step2Title': 'Comprimer',
+  'emergency.step2Desc': 'En cas de saignement abondant, appuyez fort et en continu avec un linge propre.',
+  'emergency.step3Title': 'Position latérale',
+  'emergency.step3Desc': 'Si la personne est inconsciente mais respire, placez-la en position latérale de sécurité.',
 };

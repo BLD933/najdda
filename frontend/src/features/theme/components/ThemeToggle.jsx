@@ -1,6 +1,7 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../../i18n/I18nContext';
+import RovingRadioGroup from '../../../components/ui/roving-radio-group';
 
 const OPTIONS = [
   { value: 'light', Icon: Sun, key: 'theme.light' },
@@ -15,9 +16,8 @@ const ThemeToggle = () => {
   const { t } = useTranslation();
 
   return (
-    <div
-      role="radiogroup"
-      aria-label={t('theme.label')}
+    <RovingRadioGroup
+      ariaLabel={t('theme.label')}
       className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 p-1"
     >
       {OPTIONS.map(({ value, Icon, key }) => {
@@ -29,6 +29,8 @@ const ThemeToggle = () => {
             type="button"
             role="radio"
             aria-checked={selected}
+            // Roving tabindex: only the checked radio is in the tab order.
+            tabIndex={selected ? 0 : -1}
             aria-label={label}
             title={label}
             onClick={() => setTheme(value)}
@@ -42,7 +44,7 @@ const ThemeToggle = () => {
           </button>
         );
       })}
-    </div>
+    </RovingRadioGroup>
   );
 };
 

@@ -9,6 +9,8 @@
 export default {
   // ── Global ────────────────────────────────────────────────────────────────
   'app.loading': 'Loading…',
+  'app.notFound': '404 - Page not found',
+  'app.backHome': 'Back to home',
   'app.error.network': 'I could not reach the medical service. If this is urgent, call the emergency number now.',
 
   // ── Language switcher ─────────────────────────────────────────────────────
@@ -33,6 +35,9 @@ export default {
   'login.signup': 'Sign up',
   'login.emailPlaceholder': 'you@example.com',
   'login.passwordPlaceholder': '••••••••',
+  'login.serviceDown': 'Service temporarily unavailable',
+  'login.serviceDownHelp': 'The medical server is not responding. Check your connection and try again shortly.',
+  'login.failed': 'Sign-in failed',
 
   // ── Auth: register ────────────────────────────────────────────────────────
   'register.title': 'Create Account',
@@ -53,6 +58,7 @@ export default {
   'nav.passport': 'Passport',
   'nav.exit': 'Exit',
   'brand.name': 'NAJDDA',
+  'brand.tagline': 'The AI hospital that fits in your pocket',
 
   'dashboard.hero.status': 'Medical Status: Stable',
   'dashboard.hero.greeting': 'Salam, {name}.',
@@ -219,4 +225,66 @@ export default {
   'chat.inputLabel': 'Describe your symptoms',
   'chat.inputPlaceholder': 'Describe your symptoms…',
   'chat.send': 'Send',
+  'chat.retry': 'Retry',
+
+  // ── Specialized ecosystems (ported from mobile) ─────────────────────────
+  'dashboard.ecosystems.title': 'Specialized ecosystems',
+
+  'domain.pregnancy.title': 'Pregnancy care',
+  'domain.pregnancy.description': 'Symptom, medication and food safety during pregnancy, by trimester.',
+  'domain.pregnancy.placeholder': 'Describe your symptom or question…',
+  'domain.pregnancy.trimester': 'Trimester',
+  'domain.pregnancy.selectTrimester': 'Select trimester',
+  'domain.pregnancy.t1': 'Trimester 1',
+  'domain.pregnancy.t2': 'Trimester 2',
+  'domain.pregnancy.t3': 'Trimester 3',
+
+  'domain.children.title': "Children's health",
+  'domain.children.description': "Children's symptoms and dosing, with age and weight for safe guidance.",
+  'domain.children.placeholder': 'Describe the child’s symptoms…',
+  'domain.children.ageMonths': 'Age (months)',
+  'domain.children.weightKg': 'Weight (kg)',
+
+  'domain.allergy.title': 'Allergies',
+  'domain.allergy.description': 'Allergic reaction analysis and what to do.',
+  'domain.allergy.placeholder': 'Describe the allergic reaction…',
+
+  'domain.medications.title': 'Pharmacy',
+  'domain.medications.description': 'Your medication interactions and safety.',
+  'domain.medications.placeholder': 'Ask your medication question…',
+
+  'domain.status.normal': 'Normal',
+  'domain.status.warning': 'Caution',
+  'domain.status.danger': 'Danger',
+  'domain.risk.low': 'Low risk',
+  'domain.risk.medium': 'Medium risk',
+  'domain.risk.high': 'High risk',
+  'domain.risk.unknown': 'Unknown risk',
+
+  // ── Emergency SOS page (ported from mobile) ─────────────────────────────
+  'emergency.title': 'Emergency SOS',
+  'emergency.active': 'Emergency active',
+  'emergency.standby': 'Standby',
+  'emergency.hint': 'Tap to confirm, your location is prepared then the emergency number is dialed.',
+  'emergency.confirm': 'Signal an emergency? Your location will be prepared and the emergency number dialed.',
+  'emergency.cancel': 'Cancel alert',
+  'emergency.cancelConfirm': 'End emergency mode?',
+  'emergency.callNow': 'Call {number}',
+  'emergency.locationTitle': 'My location',
+  'emergency.noLocation': 'Unknown location — share it to guide responders.',
+  'emergency.shareLocation': 'Share my location',
+  'emergency.locating': 'Locating…',
+  'emergency.openMaps': 'Open Maps',
+  'emergency.geoDenied': 'Location denied. Call the emergency number directly.',
+  'emergency.geoUnsupported': 'Geolocation not supported by your browser.',
+  'emergency.manageContacts': 'Manage',
+  'emergency.noContacts': 'No emergency contacts. Add some in the Passport.',
+  'emergency.firstAidTitle': 'Immediate first aid',
+  'emergency.step': 'Step {n}',
+  'emergency.step1Title': 'Clear the airways',
+  'emergency.step1Desc': 'Check the patient is breathing and their airway is clear.',
+  'emergency.step2Title': 'Apply pressure',
+  'emergency.step2Desc': 'For heavy bleeding, press firmly and continuously with a clean cloth.',
+  'emergency.step3Title': 'Recovery position',
+  'emergency.step3Desc': 'If the person is unconscious but breathing, roll them onto their side.',
 };
